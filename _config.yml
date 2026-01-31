@@ -1,0 +1,17 @@
+# Site settings
+title: Fast Robots
+description: Website for hosting the lab assignments for ECE 4160 Fast Robots
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "" # the base hostname & protocol for your site
+
+# Theme
+theme: jekyll-theme-minimal
+
+# Build settings
+markdown: kramdown
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
