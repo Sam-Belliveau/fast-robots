@@ -1,0 +1,51 @@
+# ECE 4160 Fast Robots - Jekyll Configuration
+
+title: ECE 4160 Fast Robots
+description: >-
+  My journey through ECE 4160: Fast Robots at Cornell University.
+  Documenting labs, projects, and learnings in autonomous robotics.
+
+baseurl: "/fast-robots" # GitHub Pages subpath
+url: "" # Will be set by GitHub Pages
+
+# Author info
+author:
+  name: Sam Belliveau
+  email: "srb343@cornell.edu"
+
+# Build settings
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Minima theme settings
+minima:
+  skin: dark
+  date_format: "%B %-d, %Y"
+
+# Header navigation
+header_pages:
+  - index.markdown
+  - about.markdown
+
+# Show excerpts on homepage
+show_excerpts: true
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Exclude from processing
+exclude:
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
+  - node_modules/
+  - vendor/
+  - README.md
+  - LICENSE
