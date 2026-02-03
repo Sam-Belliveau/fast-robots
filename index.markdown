@@ -17,3 +17,7 @@ title: Home
 I'm a senior ECE major at Cornell doing HCI research. This site documents my journey through ECE 4160: Fast Robots, where I'm building and programming an autonomous robot.
 
 🔗 **Personal Website:** [samb.nyc](https://samb.nyc)
+
+## Labs
+
+- [Lab 1: The Artemis Board and Bluetooth](labs/lab1/)
