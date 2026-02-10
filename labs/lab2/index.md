@@ -18,9 +18,9 @@ I connected the ICM-20948 IMU to the Artemis Nano over I2C (QWIIC connector). Af
 
 Using the accelerometer's gravity vector, pitch and roll can be computed with:
 
-$$\theta_\text{pitch} = \arctan\!\left(\frac{a_x}{\sqrt{a_y^2 + a_z^2}}\right)$$
+$$\theta_\text{pitch} = \arctan\left(\frac{a_x}{\sqrt{a_y^2 + a_z^2}}\right)$$
 
-$$\phi_\text{roll} = \arctan\!\left(\frac{a_y}{\sqrt{a_x^2 + a_z^2}}\right)$$
+$$\phi_\text{roll} = \arctan\left(\frac{a_y}{\sqrt{a_x^2 + a_z^2}}\right)$$
 
 These use the two-axis formulas to avoid the singularity issues of the simpler `atan2(a_x, a_z)` approach.
 
