@@ -1,17 +1,16 @@
 #ifndef CIRCULAR_BUFFER_H
 #define CIRCULAR_BUFFER_H
 
-
 template<class T, int Size>
 struct CircularBuffer {
     constexpr static int Mask = Size - 1;
 
-    T data[Size] = { 0 };
+    T data[Size] = { T(0) };
     int head = 0;
     int tail = 0;
 
     void push(const T& value) {
-        data[head] = value;
+        data[head & Mask] = value;
         head = (head + 1) & Mask;
         if (head == tail) {
             tail = (tail + 1) & Mask;
@@ -22,7 +21,7 @@ struct CircularBuffer {
         if (head == tail) {
             return false;
         } else {
-            value = data[tail];
+            value = data[tail & Mask];
             tail = (tail + 1) & Mask;
             return true;
         }
@@ -42,7 +41,7 @@ struct CircularBuffer {
     }
 
     const T& top() const {
-        return data[tail];
+        return data[tail & Mask];
     }
 
     const T& bottom() const {

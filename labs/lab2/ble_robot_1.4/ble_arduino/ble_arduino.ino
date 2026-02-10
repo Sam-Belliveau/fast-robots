@@ -116,7 +116,7 @@ handle_command()
             tx_estring_value.append("PONG");
             tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
-            Serial.print("Sent back: ");
+            Serial.print(F("Sent back: "));
             Serial.println(tx_estring_value.c_str());
 
             break;
@@ -136,9 +136,9 @@ handle_command()
             if (!success)
                 return;
 
-            Serial.print("Two Integers: ");
+            Serial.print(F("Two Integers: "));
             Serial.print(int_a);
-            Serial.print(", ");
+            Serial.print(F(", "));
             Serial.println(int_b);
             
             break;
@@ -160,11 +160,11 @@ handle_command()
             if (!success)
                 return;
             
-            Serial.print("Three Floats: ");
+            Serial.print(F("Three Floats: "));
             Serial.print(float_a);
-            Serial.print(", ");
+            Serial.print(F(", "));
             Serial.print(float_b);
-            Serial.print(", ");
+            Serial.print(F(", "));
             Serial.println(float_c);
 
             break;
@@ -183,7 +183,7 @@ handle_command()
             tx_estring_value.append(temp);
             tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
-            Serial.print("Sent back: ");
+            Serial.print(F("Sent back: "));
             Serial.println(tx_estring_value.c_str());
 
             break;
@@ -218,7 +218,7 @@ handle_command()
                 tx_estring_value.append(temp);
                 tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
-                Serial.print("Sent back: ");
+                Serial.print(F("Sent back: "));
                 Serial.println(tx_estring_value.c_str());
             }
 
@@ -240,7 +240,7 @@ handle_command()
             tx_estring_value.append(char_arr);
             tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
-            Serial.print("Sent back: ");
+            Serial.print(F("Sent back: "));
             Serial.println(tx_estring_value.c_str());
             
             break;
@@ -248,7 +248,7 @@ handle_command()
          * DANCE
          */
         case DANCE:
-            Serial.println("Look Ma, I'm Dancin'!");
+            Serial.println(F("Look Ma, I'm Dancin'!"));
 
             break;
         
@@ -265,7 +265,7 @@ handle_command()
          * before writing to the characteristic.
          */
         default:
-            Serial.print("Invalid Command Type: ");
+            Serial.print(F("Invalid Command Type: "));
             Serial.println(cmd_type);
             break;
     }
@@ -325,7 +325,7 @@ setup()
     tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
     // Output MAC Address
-    Serial.print("Advertising BLE with MAC: ");
+    Serial.print(F("Advertising BLE with MAC: "));
     Serial.println(BLE.address());
 
     BLE.advertise();
@@ -337,6 +337,14 @@ setup()
                                             //  - minimum:  1 bit
 
     analogWriteResolution(RESOLUTION_BITS); // match resolution for analogWrite
+
+
+    #ifdef USE_SPI
+    SPI_PORT.begin();
+    #else
+    WIRE_PORT.begin();
+    WIRE_PORT.setClock(400000);
+    #endif
 
     bool initialized = false;
     while (!initialized)
@@ -352,7 +360,7 @@ setup()
         SERIAL_PORT.println(myICM.statusString());
         if (myICM.status != ICM_20948_Stat_Ok)
         {
-        SERIAL_PORT.println("Trying again...");
+        SERIAL_PORT.println(F("Trying again..."));
         delay(500);
         }
         else
@@ -437,7 +445,7 @@ loop()
 
     // If a central is connected to the peripheral
     if (central) {
-        Serial.print("Connected to: ");
+        Serial.print(F("Connected to: "));
         Serial.println(central.address());
 
         // While central is connected
@@ -452,6 +460,6 @@ loop()
             read_data();
         }
 
-        Serial.println("Disconnected");
+        Serial.println(F("Disconnected"));
     }
 }
