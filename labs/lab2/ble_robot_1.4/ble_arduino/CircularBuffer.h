@@ -51,6 +51,19 @@ struct CircularBuffer {
     const int size() const {
         return (head - tail) & Mask;
     }
+
+    struct Iterator {
+        const T* data;
+        int pos;
+
+        const T& operator*() const { return data[pos & Mask]; }
+        Iterator& operator++() { pos = (pos + 1) & Mask; return *this; }
+        Iterator& operator--() { pos = (pos - 1) & Mask; return *this; }
+        bool operator!=(const Iterator& o) const { return pos != o.pos; }
+    };
+
+    Iterator begin() const { return { data, tail }; }
+    Iterator end()   const { return { data, head }; }
 };
 
 
