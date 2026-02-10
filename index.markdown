@@ -20,4 +20,5 @@ I'm a senior ECE major at Cornell doing HCI research. This site documents my jou
 
 ## Labs
 
-- [Lab 1: The Artemis Board and Bluetooth Page](labs/lab1/)
+- [Lab 1: The Artemis Board and Bluetooth](labs/lab1/)
+- [Lab 2: IMU](labs/lab2/)
