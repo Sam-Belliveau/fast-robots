@@ -213,7 +213,7 @@ At the observed sampling rate of ~86–132 Hz, 5 seconds of data easily fits wit
 ## Record a Stunt
 
 <video width="100%" controls>
-  <source src="videos/stunt.mov" type="video/mp4">
+  <source src="videos/stunt.mp4" type="video/mp4">
 </video>
 
 ---
