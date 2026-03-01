@@ -11,3 +11,8 @@ class CMD(Enum):
     SET_VEL = 6
     STORE_TIME_MILLIS = 7
     SEND_TIME_MILLIS = 8
+    SEND_IMU_DATA = 9
+    SEND_TOF_DATA = 10
+    TOF_SHORT = 11
+    TOF_LONG = 12
+    TOF_STATS = 13
