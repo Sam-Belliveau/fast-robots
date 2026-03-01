@@ -22,3 +22,15 @@ I'm a senior ECE major at Cornell doing HCI research. This site documents my jou
 
 - [Lab 1: The Artemis Board and Bluetooth](labs/lab1/)
 - [Lab 2: IMU](labs/lab2/)
+<!--
+- [Lab 3: ToF](labs/lab3/)
+- [Lab 4: Motor Drivers and Open Loop Control](labs/lab4/)
+- [Lab 5: Linear PID and Linear Interpolation](labs/lab5/)
+- [Lab 6: Orientation PID](labs/lab6/)
+- [Lab 7: Kalman Filtering](labs/lab7/)
+- [Lab 8: Stunts!](labs/lab8/)
+- [Lab 9: Mapping](labs/lab9/)
+- [Lab 10: Localization (sim)](labs/lab10/)
+- [Lab 11: Localization (real)](labs/lab11/)
+- [Lab 12: Planning and Execution](labs/lab12/)
+-->
