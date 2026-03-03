@@ -85,6 +85,10 @@ enum CommandTypes {
   TOF_STATS = 13,
   START_RECORDING = 14,
   STOP_RECORDING = 15,
+  MOTOR_CMD = 16,
+  MOTOR_STOP = 17,
+  MOTOR_CAL = 18,
+  MOTOR_TIMEOUT = 19,
 };
 
 //////////// Command Modules ////////////
@@ -92,6 +96,7 @@ enum CommandTypes {
 #include "commands/CommandRegistry.h"
 #include "commands/cmd_imu.h"
 #include "commands/cmd_tof.h"
+#include "commands/cmd_motors.h"
 
 // Command dispatch table storage
 CommandHandler command_handlers[MAX_COMMANDS] = {nullptr};
@@ -323,9 +328,12 @@ void setup() {
   }
 
   // Register all command handlers
+  motors_init();
+
   register_core_commands();
   register_imu_commands();
   register_tof_commands();
+  register_motor_commands();
 
   Serial.print(F("Commands registered: "));
   Serial.println(num_commands);
@@ -363,9 +371,13 @@ void loop() {
     while (central.connected()) {
       read_imu();
       read_tof();
+      check_motor_timeout();
       write_data();
       read_data();
     }
+
+    // Stop motors on disconnect
+    motors_stop();
 
     Serial.println(F("Disconnected"));
   }
