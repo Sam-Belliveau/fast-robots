@@ -298,23 +298,19 @@ void setup_tof() {
   distanceSensor2.setI2CAddress(0x54);
   SERIAL_PORT.println(F("ToF sensor 2 online at address 0x54!"));
 
-  // Bring sensor 1 back up
+  // Bring sensor 1 back up (keep sensor 2 active — its address is in volatile memory)
   delay(100);
   digitalWrite(TOF1_XSHUT_PIN, HIGH);
-  digitalWrite(TOF2_XSHUT_PIN, LOW);
+  // TOF2_XSHUT stays HIGH so sensor 2 retains its 0x54 address
   delay(100);
 
   while (distanceSensor1.begin() != 0) {
     SERIAL_PORT.println(F("WARNING: ToF sensor 1 failed to begin..."));
     delay(100);
-  } 
+  }
 
   SERIAL_PORT.println(F("ToF sensor 1 online!"));
-
-  delay(100);
-  digitalWrite(TOF1_XSHUT_PIN, LOW);
-  digitalWrite(TOF2_XSHUT_PIN, LOW);
-  delay(100);
+  // Both XSHUT pins remain HIGH — both sensors are active and ready
 }
 
 void setup() {
