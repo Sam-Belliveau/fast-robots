@@ -12,23 +12,19 @@
 //////////// Time of Flight ////////////
 #include "SparkFun_VL53L1X.h"
 
-// #define USE_SPI
-
 #define SERIAL_PORT Serial
 #define SPI_PORT SPI
 #define CS_PIN 2
 #define WIRE_PORT Wire
 #define AD0_VAL 1
 
-#ifdef USE_SPI
-ICM_20948_SPI myICM;
-#else
 ICM_20948_I2C myICM;
-#endif
 
-SFEVL53L1X distanceSensor1;
-SFEVL53L1X distanceSensor2;
-#define TOF1_XSHUT_PIN A5
+#define TOF1_XSHUT_PIN D5
+#define TOF2_XSHUT_PIN D6
+SFEVL53L1X distanceSensor1(WIRE_PORT, TOF1_XSHUT_PIN);
+SFEVL53L1X distanceSensor2(WIRE_PORT, TOF2_XSHUT_PIN);
+
 bool imu_ok = false;
 
 //////////// BLE UUIDs ////////////
@@ -93,10 +89,10 @@ enum CommandTypes {
 
 //////////// Command Modules ////////////
 
-#include "commands/CommandRegistry.h"
-#include "commands/cmd_imu.h"
-#include "commands/cmd_tof.h"
-#include "commands/cmd_motors.h"
+#include "CommandRegistry.h"
+#include "cmd_imu.h"
+#include "cmd_tof.h"
+#include "cmd_motors.h"
 
 // Command dispatch table storage
 CommandHandler command_handlers[MAX_COMMANDS] = {nullptr};
@@ -233,9 +229,7 @@ void handle_command() {
 
 #define RESOLUTION_BITS (16)
 
-void setup() {
-  Serial.begin(115200);
-
+void setup_ble() {
   BLE.begin();
 
   BLE.setDeviceName("Artemis BLE");
@@ -260,24 +254,12 @@ void setup() {
   Serial.println(BLE.address());
 
   BLE.advertise();
+}
 
-  analogReadResolution(RESOLUTION_BITS);
-  analogWriteResolution(RESOLUTION_BITS);
-
-#ifdef USE_SPI
-  SPI_PORT.begin();
-#else
-  WIRE_PORT.begin();
-  WIRE_PORT.setClock(400000);
-#endif
-
+void setup_imu() {
   bool initialized = false;
   while (!initialized) {
-#ifdef USE_SPI
-    myICM.begin(CS_PIN, SPI_PORT);
-#else
     myICM.begin(WIRE_PORT, AD0_VAL);
-#endif
     SERIAL_PORT.print(F("Initialization of the sensor returned: "));
     SERIAL_PORT.println(myICM.statusString());
     if (myICM.status != ICM_20948_Stat_Ok) {
@@ -288,44 +270,64 @@ void setup() {
       imu_ok = true;
     }
   }
+}
 
-  // Let sensors fully boot before init
-  delay(500);
+void setup_tof() {
 
+  analogReadResolution(RESOLUTION_BITS);
+  analogWriteResolution(RESOLUTION_BITS);
+  
   // Initialize ToF sensor(s)
   // Both sensors start at default address 0x29.
   // Shut down sensor 1 (XSHUT), init sensor 2, change its address,
   // then bring sensor 1 back and init at default.
   pinMode(TOF1_XSHUT_PIN, OUTPUT);
+  pinMode(TOF2_XSHUT_PIN, OUTPUT);
 
   // Shut down sensor 1 via XSHUT
   digitalWrite(TOF1_XSHUT_PIN, LOW);
-  delay(100);
-
-  // First begin() call tends to fail (Pololu level shifter bus issue),
-  // but it wakes the bus up for subsequent calls.
-  distanceSensor2.begin();
+  digitalWrite(TOF2_XSHUT_PIN, HIGH);
   delay(100);
 
   // Now retry for real
-  if (distanceSensor2.begin() == 0) {
-    distanceSensor2.setI2CAddress(0x54);
-    SERIAL_PORT.println(F("ToF sensor 2 online at address 0x54!"));
-    distanceSensor2.startRanging();
-  } else {
-    SERIAL_PORT.println(F("WARNING: ToF sensor 2 failed to begin."));
-  }
+  while (distanceSensor2.begin() != 0) {
+    SERIAL_PORT.println(F("WARNING: ToF sensor 2 failed to begin..."));
+    delay(100);
+  } 
+  
+  distanceSensor2.setI2CAddress(0x54);
+  SERIAL_PORT.println(F("ToF sensor 2 online at address 0x54!"));
 
   // Bring sensor 1 back up
+  delay(100);
   digitalWrite(TOF1_XSHUT_PIN, HIGH);
+  digitalWrite(TOF2_XSHUT_PIN, LOW);
   delay(100);
 
-  if (distanceSensor1.begin() == 0) {
-    SERIAL_PORT.println(F("ToF sensor 1 online!"));
-    distanceSensor1.startRanging();
-  } else {
-    SERIAL_PORT.println(F("WARNING: ToF sensor 1 failed to begin."));
-  }
+  while (distanceSensor1.begin() != 0) {
+    SERIAL_PORT.println(F("WARNING: ToF sensor 1 failed to begin..."));
+    delay(100);
+  } 
+
+  SERIAL_PORT.println(F("ToF sensor 1 online!"));
+
+  delay(100);
+  digitalWrite(TOF1_XSHUT_PIN, LOW);
+  digitalWrite(TOF2_XSHUT_PIN, LOW);
+  delay(100);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  setup_ble();
+  delay(100);
+  WIRE_PORT.begin();
+  delay(100);
+  setup_imu();
+  delay(100);
+  setup_tof();
+  delay(100);
 
   // Register all command handlers
   motors_init();

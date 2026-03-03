@@ -15,19 +15,48 @@ CircularBuffer<int, 0x100> tof2_dist;
 
 //////////// ToF Periodic Read ////////////
 
+enum TOF_STATE { 
+  RESET=0,
+  RANGING=1,
+};
+
+int update_tof(TOF_STATE* state, SFEVL53L1X* sensor) {
+  int distance = -1;
+  switch (*state) {  
+    case RESET:
+      sensor->startRanging();
+      *state = RANGING;
+      break;
+
+    case RANGING:
+      if (sensor->checkForDataReady()) {
+        distance = sensor->getDistance();
+        sensor->clearInterrupt();
+        sensor->stopRanging();
+        *state = RESET;
+      } else {
+        *state = RANGING;
+      }
+      break;
+  }
+
+  return distance;
+}
+
 void read_tof() {
-  if (distanceSensor1.checkForDataReady()) {
-    const int time = micros();
-    int distance = distanceSensor1.getDistance();
-    distanceSensor1.clearInterrupt();
+
+  static TOF_STATE state1 = RESET;
+  static TOF_STATE state2 = RESET;
+
+  const int time = micros();
+  int distance = -1;
+
+  if (0 <= (distance = update_tof(&state1, &distanceSensor1))) {
     tof1_times.push(time);
     tof1_dist.push(distance);
   }
 
-  if (distanceSensor2.checkForDataReady()) {
-    const int time = micros();
-    int distance = distanceSensor2.getDistance();
-    distanceSensor2.clearInterrupt();
+  if (0 <= (distance = update_tof(&state2, &distanceSensor2))) {
     tof2_times.push(time);
     tof2_dist.push(distance);
   }
@@ -44,6 +73,7 @@ void cmd_send_tof_data() {
         tx_estring_value.append("|");
         tx_estring_value.append(d);
         tx_characteristic_string.writeValue(tx_estring_value.c_str());
+        delay(1);
       },
       tof1_times.begin(), tof1_times.end(), tof1_dist.begin());
 
@@ -55,6 +85,7 @@ void cmd_send_tof_data() {
         tx_estring_value.append("|");
         tx_estring_value.append(d);
         tx_characteristic_string.writeValue(tx_estring_value.c_str());
+        delay(1);
       },
       tof2_times.begin(), tof2_times.end(), tof2_dist.begin());
 
