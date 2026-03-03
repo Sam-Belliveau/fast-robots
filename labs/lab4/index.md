@@ -17,21 +17,11 @@ So the setup is:
 - **Motor Driver 1** → Left motor (both channels paralleled)
 - **Motor Driver 2** → Right motor (both channels paralleled)
 
-<!-- TODO: Draw wiring diagram showing: -->
-<!-- - Artemis GPIO pins → Motor Driver 1 (AIN1, AIN2) and Motor Driver 2 (BIN1, BIN2) -->
-<!-- - Motor Driver outputs → motors -->
-<!-- - 850mAh battery → motor driver VIN -->
-<!-- - 650mAh battery → Artemis -->
-<!-- - Common ground between Artemis and motor drivers -->
-<!-- TODO: Specify which Artemis pins you're using (must support PWM — check the pin diagram) -->
+![Overall Wiring](images/overall_wiring.jpeg)
 
 ### Pin Selection
 
-<!-- TODO: Pick the specific Artemis pins for motor control. Consider: -->
-<!-- - Pins must support analogWrite (PWM) -->
-<!-- - Physical location on the board — shorter wires = less noise + easier routing -->
-<!-- - You need 4 PWM pins total (2 per motor driver for direction control) -->
-<!-- Look at the Artemis Nano pin diagram: https://cdn.sparkfun.com/assets/5/5/1/6/3/RedBoard-Artemis-Nano.pdf -->
+![Artemis Pin Selection](images/artemis_pin_selection.jpeg)
 
 ### Battery Discussion
 
@@ -58,9 +48,7 @@ The 850mAh Li-Ion battery powers the motors (higher current capacity), and the 6
 
 First, I tested one motor driver powered from an external power supply (not the battery). This makes debugging easier because you can set current limits and see exactly what's happening.
 
-<!-- TODO: What voltage and current limit did you set on the power supply? -->
-<!-- (The motors are rated for ~3.7V from the Li-Ion battery. A reasonable starting point might be 3.7V with a 1-2A current limit) -->
-<!-- TODO: Photo of your bench setup with the power supply, oscilloscope, and motor driver -->
+![Soldered Motor Controller](images/solder_motor_controller.jpeg)
 
 ### PWM Signal Verification
 
