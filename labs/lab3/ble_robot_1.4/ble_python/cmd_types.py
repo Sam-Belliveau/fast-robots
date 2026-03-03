@@ -16,3 +16,5 @@ class CMD(Enum):
     TOF_SHORT = 11
     TOF_LONG = 12
     TOF_STATS = 13
+    START_RECORDING = 14
+    STOP_RECORDING = 15
