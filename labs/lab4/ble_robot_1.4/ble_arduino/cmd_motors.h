@@ -31,22 +31,39 @@ void motors_stop() {
 }
 
 void motors_init() {
+  analogWriteFrequency(1000); 
+  
   pinMode(MOTOR1_FWD, OUTPUT);
   pinMode(MOTOR1_REV, OUTPUT);
   pinMode(MOTOR2_FWD, OUTPUT);
   pinMode(MOTOR2_REV, OUTPUT);
 
   // analogWrite(MOTOR1_FWD, 100);
-  for (int k = 50; k <= 200; k += 50) {
+  motors_stop();
+  for (int k = 0; k <= 255; k += 1) {
     analogWrite(MOTOR2_FWD, k);
-    delay(3000);
-    motors_stop();
-    delay(1000);
-    analogWrite(MOTOR1_FWD, k);
-    delay(3000);
-    motors_stop();
-    delay(1000);
+    delay(10);
   }
+  motors_stop();
+  delay(1000);
+  for (int k = 0; k <= 255; k += 1) {
+    analogWrite(MOTOR1_FWD, k);
+    delay(10);
+  }
+  motors_stop();
+  delay(1000);
+  for (int k = 0; k <= 255; k += 1) {
+    analogWrite(MOTOR2_REV, k);
+    delay(10);
+  }
+  motors_stop();
+  delay(1000);
+  for (int k = 0; k <= 255; k += 1) {
+    analogWrite(MOTOR1_REV, k);
+    delay(10);
+  }
+  motors_stop();
+  delay(1000);
 }
 
 // Set a single motor: speed in [-PWM_MAX, PWM_MAX]

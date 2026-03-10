@@ -270,7 +270,11 @@ void setup_imu() {
   }
 }
 
-void setup_tof() {
+void setup_tof() { 
+  
+  analogReadResolution(8);
+  analogWriteResolution(8);
+ 
   // Initialize ToF sensor(s)
   // Both sensors start at default address 0x29.
   // Shut down sensor 1 (XSHUT), init sensor 2, change its address,
@@ -308,7 +312,7 @@ void setup_tof() {
 
 void setup() {
   Serial.begin(115200);
-
+  
   setup_ble();
   delay(100);
   WIRE_PORT.begin();
