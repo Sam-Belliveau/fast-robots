@@ -10,7 +10,7 @@
 #define MOTOR2_FWD A2
 #define MOTOR2_REV A3
 
-#define RESOLUTION_BITS (16)
+#define RESOLUTION_BITS (8)
 
 // Max PWM value at 16-bit resolution
 #define PWM_MAX ((1 << RESOLUTION_BITS) - 1)
@@ -37,7 +37,12 @@ void motors_init() {
   pinMode(MOTOR1_REV, OUTPUT);
   pinMode(MOTOR2_FWD, OUTPUT);
   pinMode(MOTOR2_REV, OUTPUT);
+
+
   motors_stop();
+  analogWrite(MOTOR1_FWD, 100);
+  analogWrite(MOTOR2_FWD, 100);
+  delay(5000);
 }
 
 // Set a single motor: speed in [-PWM_MAX, PWM_MAX]
@@ -87,8 +92,10 @@ void cmd_motor() {
   int left, right;
   if (!robot_cmd.get_next_value(left))
     return;
+  left = constrain(left, -PWM_MAX, PWM_MAX);
   if (!robot_cmd.get_next_value(right))
     return;
+  right = constrain(right, -PWM_MAX, PWM_MAX);
   set_motors(left, right);
   Serial.print(F("Motors: L="));
   Serial.print(left);

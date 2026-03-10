@@ -227,7 +227,7 @@ void handle_command() {
 
 //////////// Setup ////////////
 
-#define RESOLUTION_BITS (16)
+#define RESOLUTION_BITS (8)
 
 void setup_ble() {
   BLE.begin();
@@ -310,7 +310,6 @@ void setup_tof() {
   }
 
   SERIAL_PORT.println(F("ToF sensor 1 online!"));
-  // Both XSHUT pins remain HIGH — both sensors are active and ready
 }
 
 void setup() {
