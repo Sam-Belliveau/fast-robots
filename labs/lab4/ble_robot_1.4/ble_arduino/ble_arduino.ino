@@ -227,8 +227,6 @@ void handle_command() {
 
 //////////// Setup ////////////
 
-#define RESOLUTION_BITS (8)
-
 void setup_ble() {
   BLE.begin();
 
@@ -273,10 +271,6 @@ void setup_imu() {
 }
 
 void setup_tof() {
-
-  analogReadResolution(RESOLUTION_BITS);
-  analogWriteResolution(RESOLUTION_BITS);
-  
   // Initialize ToF sensor(s)
   // Both sensors start at default address 0x29.
   // Shut down sensor 1 (XSHUT), init sensor 2, change its address,

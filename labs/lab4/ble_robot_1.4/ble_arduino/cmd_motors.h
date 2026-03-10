@@ -7,13 +7,11 @@
 
 #define MOTOR1_FWD A0
 #define MOTOR1_REV A1
-#define MOTOR2_FWD A2
-#define MOTOR2_REV A3
+#define MOTOR2_REV A2
+#define MOTOR2_FWD A3
 
-#define RESOLUTION_BITS (8)
-
-// Max PWM value at 16-bit resolution
-#define PWM_MAX ((1 << RESOLUTION_BITS) - 1)
+// Artemis Nano (Apollo3) analogWrite() range: 0-255
+#define PWM_MAX 255
 
 // Calibration factor for motor 2 (multiply by this to match motor 1)
 // Adjust empirically: >1.0 if motor 2 is slower, <1.0 if faster
@@ -38,17 +36,30 @@ void motors_init() {
   pinMode(MOTOR2_FWD, OUTPUT);
   pinMode(MOTOR2_REV, OUTPUT);
 
-
-  motors_stop();
-  analogWrite(MOTOR1_FWD, 100);
-  analogWrite(MOTOR2_FWD, 100);
-  delay(5000);
+  // analogWrite(MOTOR1_FWD, 100);
+  for (int k = 50; k <= 200; k += 50) {
+    analogWrite(MOTOR2_FWD, k);
+    delay(3000);
+    motors_stop();
+    delay(1000);
+    analogWrite(MOTOR1_FWD, k);
+    delay(3000);
+    motors_stop();
+    delay(1000);
+  }
 }
 
 // Set a single motor: speed in [-PWM_MAX, PWM_MAX]
 // Always zero the inactive pin BEFORE setting the active pin
 // to guarantee both pins are never driven high simultaneously.
 static void set_motor(int fwd_pin, int rev_pin, int speed) {
+  Serial.print(F("  set_motor fwd="));
+  Serial.print(fwd_pin);
+  Serial.print(F(" rev="));
+  Serial.print(rev_pin);
+  Serial.print(F(" speed="));
+  Serial.println(speed);
+
   if (speed > 0) {
     analogWrite(rev_pin, 0);
     analogWrite(fwd_pin, speed);
@@ -100,7 +111,9 @@ void cmd_motor() {
   Serial.print(F("Motors: L="));
   Serial.print(left);
   Serial.print(F(" R="));
-  Serial.println(right);
+  Serial.print(right);
+  Serial.print(F(" PWM_MAX="));
+  Serial.println(PWM_MAX);
 }
 
 // MOTOR_STOP: immediately stop both motors
