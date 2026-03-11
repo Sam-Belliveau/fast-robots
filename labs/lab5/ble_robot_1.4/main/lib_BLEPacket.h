@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-#define MAX_MSG_SIZE 151
+#define MAX_MSG_SIZE 247
 
 enum DataType : uint8_t {
     // Strings

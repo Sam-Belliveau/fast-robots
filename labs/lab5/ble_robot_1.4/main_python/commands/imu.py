@@ -22,8 +22,7 @@ class IMUSample(NamedTuple):
 
 @dataclass
 class SendIMUData(BLECommand[list[IMUSample]]):
-    @staticmethod
-    def cmd_id() -> int: return 9
+    cmd_name = "SEND_IMU_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[IMUSample]:
         return _chunk(fields, 10, IMUSample)

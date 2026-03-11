@@ -22,8 +22,7 @@ class ToFStatsSample(NamedTuple):
 
 @dataclass
 class SendToFData(BLECommand[list[ToFSample]]):
-    @staticmethod
-    def cmd_id() -> int: return 10
+    cmd_name = "SEND_TOF_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[ToFSample]:
         return _chunk(fields, 3, ToFSample)
@@ -31,8 +30,7 @@ class SendToFData(BLECommand[list[ToFSample]]):
 
 @dataclass
 class ToFShort(BLECommand[None]):
-    @staticmethod
-    def cmd_id() -> int: return 11
+    cmd_name = "TOF_SHORT"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> None:
         return None
@@ -40,8 +38,7 @@ class ToFShort(BLECommand[None]):
 
 @dataclass
 class ToFLong(BLECommand[None]):
-    @staticmethod
-    def cmd_id() -> int: return 12
+    cmd_name = "TOF_LONG"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> None:
         return None
@@ -49,8 +46,7 @@ class ToFLong(BLECommand[None]):
 
 @dataclass
 class ToFStats(BLECommand[list[ToFStatsSample]]):
-    @staticmethod
-    def cmd_id() -> int: return 13
+    cmd_name = "TOF_STATS"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[ToFStatsSample]:
         return _chunk(fields, 4, ToFStatsSample)

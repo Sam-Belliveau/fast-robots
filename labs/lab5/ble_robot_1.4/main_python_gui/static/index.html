@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot BLE Console</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Robot Console</h1>
+            <span id="status" class="connected">Connected</span>
+        </header>
+        <div id="chat-log"></div>
+        <div id="command-bar">
+            <select id="cmd-select">
+                <option value="">Select command...</option>
+            </select>
+            <div id="param-fields"></div>
+            <button id="btn-send" disabled>Send</button>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

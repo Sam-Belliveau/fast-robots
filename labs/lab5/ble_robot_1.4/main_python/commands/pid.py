@@ -19,8 +19,7 @@ class PIDSample(NamedTuple):
 @dataclass
 class PIDStart(BLECommand[None]):
     duration_ms: int
-    @staticmethod
-    def cmd_id() -> int: return 20
+    cmd_name = "PID_START"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.duration_ms)
     def parse_response(self, fields: list[Any]) -> None:
@@ -29,8 +28,7 @@ class PIDStart(BLECommand[None]):
 
 @dataclass
 class PIDStop(BLECommand[None]):
-    @staticmethod
-    def cmd_id() -> int: return 21
+    cmd_name = "PID_STOP"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> None:
         return None
@@ -39,8 +37,7 @@ class PIDStop(BLECommand[None]):
 @dataclass
 class PIDSetpoint(BLECommand[None]):
     setpoint: float
-    @staticmethod
-    def cmd_id() -> int: return 22
+    cmd_name = "PID_SETPOINT"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.setpoint)
     def parse_response(self, fields: list[Any]) -> None:
@@ -52,8 +49,7 @@ class PIDGains(BLECommand[None]):
     kp: float
     ki: float
     kd: float
-    @staticmethod
-    def cmd_id() -> int: return 23
+    cmd_name = "PID_GAINS"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.kp)
         w.write(self.ki)
@@ -68,8 +64,7 @@ class PIDParams(BLECommand[None]):
     range: float
     rc: float
     deadband: int
-    @staticmethod
-    def cmd_id() -> int: return 24
+    cmd_name = "PID_PARAMS"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.cap)
         w.write(self.range)
@@ -81,8 +76,7 @@ class PIDParams(BLECommand[None]):
 
 @dataclass
 class SendPIDData(BLECommand[list[PIDSample]]):
-    @staticmethod
-    def cmd_id() -> int: return 25
+    cmd_name = "SEND_PID_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[PIDSample]:
         return _chunk(fields, 6, PIDSample)

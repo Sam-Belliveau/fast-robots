@@ -11,8 +11,7 @@ from ..ble.packet import PacketWriter
 class MotorCmd(BLECommand[None]):
     left: int
     right: int
-    @staticmethod
-    def cmd_id() -> int: return 16
+    cmd_name = "MOTOR_CMD"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.left)
         w.write(self.right)
@@ -22,8 +21,7 @@ class MotorCmd(BLECommand[None]):
 
 @dataclass
 class MotorStop(BLECommand[None]):
-    @staticmethod
-    def cmd_id() -> int: return 17
+    cmd_name = "MOTOR_STOP"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> None:
         return None
@@ -32,8 +30,7 @@ class MotorStop(BLECommand[None]):
 @dataclass
 class MotorCal(BLECommand[float]):
     cal: float
-    @staticmethod
-    def cmd_id() -> int: return 18
+    cmd_name = "MOTOR_CAL"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.cal)
     def parse_response(self, fields: list[Any]) -> float:
@@ -43,8 +40,7 @@ class MotorCal(BLECommand[float]):
 @dataclass
 class MotorTimeout(BLECommand[None]):
     timeout_ms: int
-    @staticmethod
-    def cmd_id() -> int: return 19
+    cmd_name = "MOTOR_TIMEOUT"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.timeout_ms)
     def parse_response(self, fields: list[Any]) -> None:

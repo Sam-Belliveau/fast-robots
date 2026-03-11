@@ -1,6 +1,7 @@
 """Async BLE connection manager using bleak."""
 
 import asyncio
+import platform
 from pathlib import Path
 from typing import Any
 
@@ -28,9 +29,18 @@ class BLEConnection:
         self._pending: dict[int, tuple[BLECommand, asyncio.Future, list]] = {}
 
     async def connect(self, timeout: float = 10.0) -> None:
-        device = await BleakScanner.find_device_by_address(
-            self._address, timeout=timeout
-        )
+        if platform.system() == "Darwin":
+            # macOS CoreBluetooth doesn't expose real MAC addresses;
+            # scan by service UUID instead.
+            devices = await BleakScanner.discover(
+                timeout=timeout,
+                service_uuids=[self._service_uuid],
+            )
+            device = devices[0] if devices else None
+        else:
+            device = await BleakScanner.find_device_by_address(
+                self._address, timeout=timeout
+            )
         if device is None:
             raise ConnectionError(
                 f"Could not find device with address {self._address}"

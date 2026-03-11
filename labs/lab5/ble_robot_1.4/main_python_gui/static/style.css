@@ -1,0 +1,204 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    max-width: 900px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+}
+
+header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e94560;
+}
+
+#status {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4ecca3;
+}
+
+/* Chat log */
+#chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message {
+    max-width: 85%;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.message.sent {
+    align-self: flex-end;
+    background: #0f3460;
+    border: 1px solid #1a4a8a;
+}
+
+.message.received {
+    align-self: flex-start;
+    background: #16213e;
+    border: 1px solid #0f3460;
+}
+
+.message .command-name {
+    font-weight: 600;
+    color: #4ecca3;
+    margin-bottom: 4px;
+}
+
+.message .params {
+    color: #a0a0c0;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+.message .response {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #0f3460;
+}
+
+.message .response.loading {
+    color: #a0a0c0;
+    font-style: italic;
+}
+
+.message .response pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.message .response img {
+    margin-top: 4px;
+    border-radius: 4px;
+}
+
+.message .elapsed {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.message.error .response {
+    color: #e94560;
+}
+
+/* Command bar */
+#command-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    background: #16213e;
+    border-top: 1px solid #0f3460;
+    flex-wrap: wrap;
+}
+
+#cmd-select {
+    padding: 8px 12px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 13px;
+    min-width: 180px;
+}
+
+#param-fields {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+#param-fields label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    color: #a0a0c0;
+    gap: 2px;
+}
+
+#param-fields input {
+    padding: 6px 10px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 13px;
+    width: 100px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+#param-fields input[type="text"] {
+    width: 160px;
+}
+
+#btn-send {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    background: #4ecca3;
+    color: #1a1a2e;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+#btn-send:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#btn-send:not(:disabled):hover {
+    background: #3ab88a;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #0f3460;
+    border-radius: 3px;
+}
