@@ -18,6 +18,30 @@
 
 #define MAX_COMMANDS 32
 
+#define BLE_CLEAR()                                                            \
+    do {                                                                       \
+        ble::tx_estring_value.clear();                                         \
+        ble::tx_float_value = 0.0;                                             \
+    } while (0)
+
+#define BLE_PRINT(x)                                                           \
+    do {                                                                       \
+        ble::tx_estring_value.append(x);                                       \
+    } while (0)
+
+#define BLE_FLUSH()                                                            \
+    do {                                                                       \
+        ble::tx_characteristic_string.writeValue(                              \
+            ble::tx_estring_value.c_str()                                      \
+        );                                                                     \
+    } while (0)
+
+#define BLE_READ_NEXT(var)                                                     \
+    do {                                                                       \
+        if (!ble::robot_cmd.get_next_value(var))                               \
+            return;                                                            \
+    } while (0)
+
 // CMD enum — keep in sync with ble_python/cmd_types.py
 enum CommandTypes {
     PING = 0,

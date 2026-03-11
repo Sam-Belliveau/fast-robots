@@ -76,28 +76,28 @@ namespace imu {
                     float mx,
                     float my,
                     float mz) {
-                    ble::tx_estring_value.clear();
-                    ble::tx_estring_value.append("I:");
-                    ble::tx_estring_value.append(t);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(ax);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(ay);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(az);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(gx);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(gy);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(gz);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(mx);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(my);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(mz);
-                    ble::tx_characteristic_string.writeValue(ble::tx_estring_value.c_str());
+                    BLE_CLEAR();
+                    BLE_PRINT("I:");
+                    BLE_PRINT(t);
+                    BLE_PRINT("|");
+                    BLE_PRINT(ax);
+                    BLE_PRINT("|");
+                    BLE_PRINT(ay);
+                    BLE_PRINT("|");
+                    BLE_PRINT(az);
+                    BLE_PRINT("|");
+                    BLE_PRINT(gx);
+                    BLE_PRINT("|");
+                    BLE_PRINT(gy);
+                    BLE_PRINT("|");
+                    BLE_PRINT(gz);
+                    BLE_PRINT("|");
+                    BLE_PRINT(mx);
+                    BLE_PRINT("|");
+                    BLE_PRINT(my);
+                    BLE_PRINT("|");
+                    BLE_PRINT(mz);
+                    BLE_FLUSH();
                     delay(1);
                 },
                 times.begin(),
@@ -113,9 +113,9 @@ namespace imu {
                 mag_z.begin()
             );
 
-            ble::tx_estring_value.clear();
-            ble::tx_estring_value.append("END");
-            ble::tx_characteristic_string.writeValue(ble::tx_estring_value.c_str());
+            BLE_CLEAR();
+            BLE_PRINT("END");
+            BLE_FLUSH();
 
             SERIAL_PRINT(F("SEND_IMU_DATA: "));
             SERIAL_PRINT(times.size());

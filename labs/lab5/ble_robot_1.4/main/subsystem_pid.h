@@ -79,8 +79,8 @@ namespace pid {
 
         void start() {
             int duration;
-            if (!ble::robot_cmd.get_next_value(duration))
-                duration = 5000;
+            BLE_READ_NEXT(duration);
+            duration = 5000;
             duration_ms = (unsigned long)duration;
 
             controller.reset();
@@ -107,8 +107,7 @@ namespace pid {
 
         void set_setpoint() {
             float sp;
-            if (!ble::robot_cmd.get_next_value(sp))
-                return;
+            BLE_READ_NEXT(sp);
             setpoint = sp;
             SERIAL_PRINT(F("PID setpoint: "));
             SERIAL_PRINTLN(sp);
@@ -116,12 +115,11 @@ namespace pid {
 
         void set_gains() {
             float kp, ki, kd;
-            if (!ble::robot_cmd.get_next_value(kp))
-                return;
-            if (!ble::robot_cmd.get_next_value(ki))
-                ki = 0;
-            if (!ble::robot_cmd.get_next_value(kd))
-                kd = 0;
+            BLE_READ_NEXT(kp);
+            BLE_READ_NEXT(ki);
+            ki = 0;
+            BLE_READ_NEXT(kd);
+            kd = 0;
             controller.kP = kp;
             controller.kI = ki;
             controller.kD = kd;
@@ -136,14 +134,13 @@ namespace pid {
         void set_params() {
             float cap, range, rc;
             int db;
-            if (!ble::robot_cmd.get_next_value(cap))
-                return;
-            if (!ble::robot_cmd.get_next_value(range))
-                range = 0;
-            if (!ble::robot_cmd.get_next_value(rc))
-                rc = 0;
-            if (!ble::robot_cmd.get_next_value(db))
-                db = 40;
+            BLE_READ_NEXT(cap);
+            BLE_READ_NEXT(range);
+            range = 0;
+            BLE_READ_NEXT(rc);
+            rc = 0;
+            BLE_READ_NEXT(db);
+            db = 40;
             controller.integrator_cap = cap;
             controller.integrator_range = range;
             controller.d_filter.rc = rc;
@@ -161,20 +158,20 @@ namespace pid {
         void send_data() {
             zip(
                 [&](int t, int meas, int pwm, int p, int i, int d) {
-                    ble::tx_estring_value.clear();
-                    ble::tx_estring_value.append("PID:");
-                    ble::tx_estring_value.append(t);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(meas);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(pwm);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(p);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(i);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(d);
-                    ble::tx_characteristic_string.writeValue(ble::tx_estring_value.c_str());
+                    BLE_CLEAR();
+                    BLE_PRINT("PID:");
+                    BLE_PRINT(t);
+                    BLE_PRINT("|");
+                    BLE_PRINT(meas);
+                    BLE_PRINT("|");
+                    BLE_PRINT(pwm);
+                    BLE_PRINT("|");
+                    BLE_PRINT(p);
+                    BLE_PRINT("|");
+                    BLE_PRINT(i);
+                    BLE_PRINT("|");
+                    BLE_PRINT(d);
+                    BLE_FLUSH();
                     delay(1);
                 },
                 times.begin(),
@@ -186,9 +183,9 @@ namespace pid {
                 d_buf.begin()
             );
 
-            ble::tx_estring_value.clear();
-            ble::tx_estring_value.append("END");
-            ble::tx_characteristic_string.writeValue(ble::tx_estring_value.c_str());
+            BLE_CLEAR();
+            BLE_PRINT("END");
+            BLE_FLUSH();
 
             SERIAL_PRINT(F("SEND_PID_DATA: "));
             SERIAL_PRINT(times.size());

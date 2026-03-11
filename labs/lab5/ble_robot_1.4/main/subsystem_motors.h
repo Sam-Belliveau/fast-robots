@@ -82,11 +82,9 @@ namespace motors {
 
         void motor() {
             int left, right;
-            if (!ble::robot_cmd.get_next_value(left))
-                return;
+            BLE_READ_NEXT(left);
+            BLE_READ_NEXT(right);
             left = constrain(left, -PWM_MAX, PWM_MAX);
-            if (!ble::robot_cmd.get_next_value(right))
-                return;
             right = constrain(right, -PWM_MAX, PWM_MAX);
             methods::set(left, right);
             SERIAL_PRINT(F("Motors: L="));
@@ -104,21 +102,21 @@ namespace motors {
 
         void motor_cal() {
             float c;
-            if (!ble::robot_cmd.get_next_value(c))
-                return;
+            BLE_READ_NEXT(c);
             cal = c;
-            ble::tx_estring_value.clear();
-            ble::tx_estring_value.append("CAL:");
-            ble::tx_estring_value.append(cal);
-            ble::tx_characteristic_string.writeValue(ble::tx_estring_value.c_str());
+
+            BLE_CLEAR();
+            BLE_PRINT("CAL:");
+            BLE_PRINT(cal);
+            BLE_FLUSH();
+
             SERIAL_PRINT(F("Motor2 calibration: "));
             SERIAL_PRINTLN(cal);
         }
 
         void motor_timeout() {
             int timeout;
-            if (!ble::robot_cmd.get_next_value(timeout))
-                return;
+            BLE_READ_NEXT(timeout);
             timeout_ms = (unsigned long)timeout;
             SERIAL_PRINT(F("Motor timeout: "));
             SERIAL_PRINT(timeout_ms);
@@ -134,17 +132,6 @@ namespace motors {
         pinMode(MOTOR1_REV, OUTPUT);
         pinMode(MOTOR2_FWD, OUTPUT);
         pinMode(MOTOR2_REV, OUTPUT);
-
-        for (int k = 50; k <= 200; k += 50) {
-            analogWrite(MOTOR2_FWD, k);
-            delay(3000);
-            methods::stop();
-            delay(1000);
-            analogWrite(MOTOR1_FWD, k);
-            delay(3000);
-            methods::stop();
-            delay(1000);
-        }
 
         ble::methods::register_command(MOTOR_CMD, commands::motor);
         ble::methods::register_command(MOTOR_STOP, commands::motor_stop);

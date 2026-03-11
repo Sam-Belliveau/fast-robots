@@ -123,14 +123,12 @@ namespace tof {
         void send_data() {
             zip(
                 [&](int t, int d) {
-                    ble::tx_estring_value.clear();
-                    ble::tx_estring_value.append("D1:");
-                    ble::tx_estring_value.append(t);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(d);
-                    ble::tx_characteristic_string.writeValue(
-                        ble::tx_estring_value.c_str()
-                    );
+                    BLE_CLEAR();
+                    BLE_PRINT("D1:");
+                    BLE_PRINT(t);
+                    BLE_PRINT("|");
+                    BLE_PRINT(d);
+                    BLE_FLUSH();
                     delay(1);
                 },
                 times1.begin(),
@@ -140,14 +138,12 @@ namespace tof {
 
             zip(
                 [&](int t, int d) {
-                    ble::tx_estring_value.clear();
-                    ble::tx_estring_value.append("D2:");
-                    ble::tx_estring_value.append(t);
-                    ble::tx_estring_value.append("|");
-                    ble::tx_estring_value.append(d);
-                    ble::tx_characteristic_string.writeValue(
-                        ble::tx_estring_value.c_str()
-                    );
+                    BLE_CLEAR();
+                    BLE_PRINT("D2:");
+                    BLE_PRINT(t);
+                    BLE_PRINT("|");
+                    BLE_PRINT(d);
+                    BLE_FLUSH();
                     delay(1);
                 },
                 times2.begin(),
@@ -155,11 +151,9 @@ namespace tof {
                 dist2.begin()
             );
 
-            ble::tx_estring_value.clear();
-            ble::tx_estring_value.append("END");
-            ble::tx_characteristic_string.writeValue(
-                ble::tx_estring_value.c_str()
-            );
+            BLE_CLEAR();
+            BLE_PRINT("END");
+            BLE_FLUSH();
 
             SERIAL_PRINT(F("SEND_TOF_DATA: "));
             SERIAL_PRINT(dist1.size());
@@ -197,16 +191,14 @@ namespace tof {
                     }
                     std_dev = sqrt(sq_sum / n);
                 }
-                ble::tx_estring_value.clear();
-                ble::tx_estring_value.append("S1:");
-                ble::tx_estring_value.append(n);
-                ble::tx_estring_value.append("|");
-                ble::tx_estring_value.append(mean);
-                ble::tx_estring_value.append("|");
-                ble::tx_estring_value.append(std_dev);
-                ble::tx_characteristic_string.writeValue(
-                    ble::tx_estring_value.c_str()
-                );
+                BLE_CLEAR();
+                BLE_PRINT("S1:");
+                BLE_PRINT(n);
+                BLE_PRINT("|");
+                BLE_PRINT(mean);
+                BLE_PRINT("|");
+                BLE_PRINT(std_dev);
+                BLE_FLUSH();
             }
 
             // Sensor 2 stats
@@ -225,23 +217,19 @@ namespace tof {
                     }
                     std_dev = sqrt(sq_sum / n);
                 }
-                ble::tx_estring_value.clear();
-                ble::tx_estring_value.append("S2:");
-                ble::tx_estring_value.append(n);
-                ble::tx_estring_value.append("|");
-                ble::tx_estring_value.append(mean);
-                ble::tx_estring_value.append("|");
-                ble::tx_estring_value.append(std_dev);
-                ble::tx_characteristic_string.writeValue(
-                    ble::tx_estring_value.c_str()
-                );
+                BLE_CLEAR();
+                BLE_PRINT("S2:");
+                BLE_PRINT(n);
+                BLE_PRINT("|");
+                BLE_PRINT(mean);
+                BLE_PRINT("|");
+                BLE_PRINT(std_dev);
+                BLE_FLUSH();
             }
 
-            ble::tx_estring_value.clear();
-            ble::tx_estring_value.append("END");
-            ble::tx_characteristic_string.writeValue(
-                ble::tx_estring_value.c_str()
-            );
+            BLE_CLEAR();
+            BLE_PRINT("END");
+            BLE_FLUSH();
 
             SERIAL_PRINT(F("TOF_STATS: S1 n="));
             SERIAL_PRINT(dist1.size());
