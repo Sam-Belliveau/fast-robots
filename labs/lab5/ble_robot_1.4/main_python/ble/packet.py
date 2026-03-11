@@ -87,7 +87,6 @@ class PacketReader:
         self.req_id = struct.unpack_from("<H", self._data, 0)[0]
         self._pos = 2
         self._found_end = False
-        self._truncated = False
 
     def read(self) -> int | float | str | None:
         """Read the next tagged value. Returns None at DT_END or end of data."""
@@ -114,14 +113,15 @@ class PacketReader:
 
         if tag == DataType.STR:
             if self._pos >= len(self._data):
-                self._pos -= 1  # back up to tag
-                self._truncated = True
+                _warn(f"req_id={self.req_id}: string truncated (no length byte)")
                 return None
             slen = self._data[self._pos]
             self._pos += 1
             if self._pos + slen > len(self._data):
-                self._pos -= 2  # back up to tag
-                self._truncated = True
+                _warn(
+                    f"req_id={self.req_id}: string truncated "
+                    f"(declared {slen} bytes, have {len(self._data) - self._pos})"
+                )
                 return None
             s = self._data[self._pos : self._pos + slen].decode("utf-8")
             self._pos += slen
@@ -135,10 +135,10 @@ class PacketReader:
 
         fmt, size = _TYPE_FORMAT[dt]
         if self._pos + size > len(self._data):
-            # Value is split across notification boundary.
-            # Back up to the tag byte so remaining() includes it.
-            self._pos -= 1
-            self._truncated = True
+            _warn(
+                f"req_id={self.req_id}: {dt.name} truncated "
+                f"(need {size} bytes, have {len(self._data) - self._pos})"
+            )
             return None
         value = struct.unpack_from(fmt, self._data, self._pos)[0]
         self._pos += size
@@ -158,10 +158,3 @@ class PacketReader:
     def has_end(self) -> bool:
         return self._found_end
 
-    @property
-    def remaining(self) -> bytes:
-        """Unread bytes from the current position (for carrying over
-        partial values split across BLE notifications)."""
-        if self._pos < len(self._data):
-            return self._data[self._pos:]
-        return b""

@@ -38,7 +38,6 @@ class BLEConnection:
         self._client: BleakClient | None = None
         self._next_req_id: int = 1
         self._pending: dict[int, tuple[BLECommand, asyncio.Future, list]] = {}
-        self._leftover: dict[int, bytes] = {}  # partial bytes per req_id
 
     async def connect(self, timeout: float = 10.0) -> None:
         if platform.system() == "Darwin":
@@ -125,7 +124,6 @@ class BLEConnection:
         try:
             fields = reader.read_all()
         except Exception as e:
-            # BLEError from DT_ERR or other parse failures
             self._pending.pop(req_id, None)
             _error(
                 f"{type(command).__name__} (req_id={req_id}): {e}"
