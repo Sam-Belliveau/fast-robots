@@ -80,10 +80,10 @@ namespace motors {
 
     namespace commands {
 
-        void motor() {
-            int left, right;
-            BLE_READ_NEXT(left);
-            BLE_READ_NEXT(right);
+        void motor(BLERequest &req) {
+            int32_t left, right;
+            req.read(left);
+            req.read(right);
             left = constrain(left, -PWM_MAX, PWM_MAX);
             right = constrain(right, -PWM_MAX, PWM_MAX);
             methods::set(left, right);
@@ -95,28 +95,27 @@ namespace motors {
             SERIAL_PRINTLN(PWM_MAX);
         }
 
-        void motor_stop() {
+        void motor_stop(BLERequest &req) {
             methods::stop();
             SERIAL_PRINTLN(F("Motors stopped"));
         }
 
-        void motor_cal() {
+        void motor_cal(BLERequest &req) {
             float c;
-            BLE_READ_NEXT(c);
+            req.read(c);
             cal = c;
 
-            BLE_CLEAR();
-            BLE_PRINT("CAL:");
-            BLE_PRINT(cal);
-            BLE_FLUSH();
+            BLEResponse res = req.new_response();
+            res.add(cal);
+            res.flush();
 
             SERIAL_PRINT(F("Motor2 calibration: "));
             SERIAL_PRINTLN(cal);
         }
 
-        void motor_timeout() {
-            int timeout;
-            BLE_READ_NEXT(timeout);
+        void motor_timeout(BLERequest &req) {
+            int32_t timeout;
+            req.read(timeout);
             timeout_ms = (unsigned long)timeout;
             SERIAL_PRINT(F("Motor timeout: "));
             SERIAL_PRINT(timeout_ms);

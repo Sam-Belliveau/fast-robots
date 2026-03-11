@@ -64,7 +64,8 @@ namespace imu {
 
     namespace commands {
 
-        void send_data() {
+        void send_data(BLERequest &req) {
+            BLEResponse res = req.new_response();
             zip(
                 [&](int t,
                     float ax,
@@ -76,28 +77,17 @@ namespace imu {
                     float mx,
                     float my,
                     float mz) {
-                    BLE_CLEAR();
-                    BLE_PRINT("I:");
-                    BLE_PRINT(t);
-                    BLE_PRINT("|");
-                    BLE_PRINT(ax);
-                    BLE_PRINT("|");
-                    BLE_PRINT(ay);
-                    BLE_PRINT("|");
-                    BLE_PRINT(az);
-                    BLE_PRINT("|");
-                    BLE_PRINT(gx);
-                    BLE_PRINT("|");
-                    BLE_PRINT(gy);
-                    BLE_PRINT("|");
-                    BLE_PRINT(gz);
-                    BLE_PRINT("|");
-                    BLE_PRINT(mx);
-                    BLE_PRINT("|");
-                    BLE_PRINT(my);
-                    BLE_PRINT("|");
-                    BLE_PRINT(mz);
-                    BLE_FLUSH();
+                    res.add((int32_t)t);
+                    res.add(ax);
+                    res.add(ay);
+                    res.add(az);
+                    res.add(gx);
+                    res.add(gy);
+                    res.add(gz);
+                    res.add(mx);
+                    res.add(my);
+                    res.add(mz);
+                    res.flush();
                     delay(1);
                 },
                 times.begin(),
@@ -113,9 +103,7 @@ namespace imu {
                 mag_z.begin()
             );
 
-            BLE_CLEAR();
-            BLE_PRINT("END");
-            BLE_FLUSH();
+            res.end();
 
             SERIAL_PRINT(F("SEND_IMU_DATA: "));
             SERIAL_PRINT(times.size());

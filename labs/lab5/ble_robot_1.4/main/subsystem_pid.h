@@ -77,9 +77,9 @@ namespace pid {
 
     namespace commands {
 
-        void start() {
-            int duration;
-            BLE_READ_NEXT(duration);
+        void start(BLERequest &req) {
+            int32_t duration;
+            req.read(duration);
             duration = 5000;
             duration_ms = (unsigned long)duration;
 
@@ -99,26 +99,26 @@ namespace pid {
             SERIAL_PRINTLN(duration_ms);
         }
 
-        void stop() {
+        void stop(BLERequest &req) {
             active = false;
             motors::methods::stop();
             SERIAL_PRINTLN(F("PID stopped"));
         }
 
-        void set_setpoint() {
+        void set_setpoint(BLERequest &req) {
             float sp;
-            BLE_READ_NEXT(sp);
+            req.read(sp);
             setpoint = sp;
             SERIAL_PRINT(F("PID setpoint: "));
             SERIAL_PRINTLN(sp);
         }
 
-        void set_gains() {
+        void set_gains(BLERequest &req) {
             float kp, ki, kd;
-            BLE_READ_NEXT(kp);
-            BLE_READ_NEXT(ki);
+            req.read(kp);
+            req.read(ki);
             ki = 0;
-            BLE_READ_NEXT(kd);
+            req.read(kd);
             kd = 0;
             controller.kP = kp;
             controller.kI = ki;
@@ -131,15 +131,15 @@ namespace pid {
             SERIAL_PRINTLN(kd);
         }
 
-        void set_params() {
+        void set_params(BLERequest &req) {
             float cap, range, rc;
-            int db;
-            BLE_READ_NEXT(cap);
-            BLE_READ_NEXT(range);
+            int32_t db;
+            req.read(cap);
+            req.read(range);
             range = 0;
-            BLE_READ_NEXT(rc);
+            req.read(rc);
             rc = 0;
-            BLE_READ_NEXT(db);
+            req.read(db);
             db = 40;
             controller.integrator_cap = cap;
             controller.integrator_range = range;
@@ -155,23 +155,17 @@ namespace pid {
             SERIAL_PRINTLN(db);
         }
 
-        void send_data() {
+        void send_data(BLERequest &req) {
+            BLEResponse res = req.new_response();
             zip(
                 [&](int t, int meas, int pwm, int p, int i, int d) {
-                    BLE_CLEAR();
-                    BLE_PRINT("PID:");
-                    BLE_PRINT(t);
-                    BLE_PRINT("|");
-                    BLE_PRINT(meas);
-                    BLE_PRINT("|");
-                    BLE_PRINT(pwm);
-                    BLE_PRINT("|");
-                    BLE_PRINT(p);
-                    BLE_PRINT("|");
-                    BLE_PRINT(i);
-                    BLE_PRINT("|");
-                    BLE_PRINT(d);
-                    BLE_FLUSH();
+                    res.add((int32_t)t);
+                    res.add((int32_t)meas);
+                    res.add((int32_t)pwm);
+                    res.add((int32_t)p);
+                    res.add((int32_t)i);
+                    res.add((int32_t)d);
+                    res.flush();
                     delay(1);
                 },
                 times.begin(),
@@ -183,9 +177,7 @@ namespace pid {
                 d_buf.begin()
             );
 
-            BLE_CLEAR();
-            BLE_PRINT("END");
-            BLE_FLUSH();
+            res.end();
 
             SERIAL_PRINT(F("SEND_PID_DATA: "));
             SERIAL_PRINT(times.size());

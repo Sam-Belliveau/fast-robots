@@ -120,15 +120,15 @@ namespace tof {
 
     namespace commands {
 
-        void send_data() {
+        void send_data(BLERequest &req) {
+            BLEResponse res = req.new_response();
+
             zip(
                 [&](int t, int d) {
-                    BLE_CLEAR();
-                    BLE_PRINT("D1:");
-                    BLE_PRINT(t);
-                    BLE_PRINT("|");
-                    BLE_PRINT(d);
-                    BLE_FLUSH();
+                    res.add((int32_t)t);
+                    res.add((int16_t)d);
+                    res.add((int32_t)1); // sensor ID
+                    res.flush();
                     delay(1);
                 },
                 times1.begin(),
@@ -138,12 +138,10 @@ namespace tof {
 
             zip(
                 [&](int t, int d) {
-                    BLE_CLEAR();
-                    BLE_PRINT("D2:");
-                    BLE_PRINT(t);
-                    BLE_PRINT("|");
-                    BLE_PRINT(d);
-                    BLE_FLUSH();
+                    res.add((int32_t)t);
+                    res.add((int16_t)d);
+                    res.add((int32_t)2); // sensor ID
+                    res.flush();
                     delay(1);
                 },
                 times2.begin(),
@@ -151,9 +149,7 @@ namespace tof {
                 dist2.begin()
             );
 
-            BLE_CLEAR();
-            BLE_PRINT("END");
-            BLE_FLUSH();
+            res.end();
 
             SERIAL_PRINT(F("SEND_TOF_DATA: "));
             SERIAL_PRINT(dist1.size());
@@ -162,19 +158,21 @@ namespace tof {
             SERIAL_PRINTLN(F(" S2 samples"));
         }
 
-        void short_mode() {
+        void short_mode(BLERequest &req) {
             sensor1.setDistanceModeShort();
             sensor2.setDistanceModeShort();
             SERIAL_PRINTLN(F("ToF: short mode"));
         }
 
-        void long_mode() {
+        void long_mode(BLERequest &req) {
             sensor1.setDistanceModeLong();
             sensor2.setDistanceModeLong();
             SERIAL_PRINTLN(F("ToF: long mode"));
         }
 
-        void stats() {
+        void stats(BLERequest &req) {
+            BLEResponse res = req.new_response();
+
             // Sensor 1 stats
             {
                 const int n = dist1.size();
@@ -191,14 +189,11 @@ namespace tof {
                     }
                     std_dev = sqrt(sq_sum / n);
                 }
-                BLE_CLEAR();
-                BLE_PRINT("S1:");
-                BLE_PRINT(n);
-                BLE_PRINT("|");
-                BLE_PRINT(mean);
-                BLE_PRINT("|");
-                BLE_PRINT(std_dev);
-                BLE_FLUSH();
+                res.add((int32_t)1); // sensor ID
+                res.add((int32_t)n);
+                res.add(mean);
+                res.add(std_dev);
+                res.flush();
             }
 
             // Sensor 2 stats
@@ -217,19 +212,14 @@ namespace tof {
                     }
                     std_dev = sqrt(sq_sum / n);
                 }
-                BLE_CLEAR();
-                BLE_PRINT("S2:");
-                BLE_PRINT(n);
-                BLE_PRINT("|");
-                BLE_PRINT(mean);
-                BLE_PRINT("|");
-                BLE_PRINT(std_dev);
-                BLE_FLUSH();
+                res.add((int32_t)2); // sensor ID
+                res.add((int32_t)n);
+                res.add(mean);
+                res.add(std_dev);
+                res.flush();
             }
 
-            BLE_CLEAR();
-            BLE_PRINT("END");
-            BLE_FLUSH();
+            res.end();
 
             SERIAL_PRINT(F("TOF_STATS: S1 n="));
             SERIAL_PRINT(dist1.size());

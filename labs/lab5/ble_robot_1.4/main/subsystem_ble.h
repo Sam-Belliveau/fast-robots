@@ -2,47 +2,21 @@
 
 // BLE subsystem
 // Owns: BLE service/characteristics, command registry, core commands,
-//       robot_cmd, tx_estring_value, recording state, misc buffers.
+//       binary packet TX/RX, recording state, misc buffers.
 
 #include "subsystem_serial.h"
-#include "cornell_BLECStringCharacteristic.h"
-#include "cornell_EString.h"
-#include "cornell_RobotCommand.h"
+#include "lib_BLEPacket.h"
 #include "lib_CircularBuffer.h"
 #include <ArduinoBLE.h>
 
 #define BLE_UUID_TEST_SERVICE "1785129f-3b3a-4cf5-a01f-03668e8b12e9"
-#define BLE_UUID_RX_STRING "9750f60b-9c9c-4158-b620-02ec9521cd99"
+#define BLE_UUID_RX_CMD "9750f60b-9c9c-4158-b620-02ec9521cd99"
 #define BLE_UUID_TX_FLOAT "27616294-3063-4ecc-b60b-3470ddef2938"
-#define BLE_UUID_TX_STRING "f235a225-6735-4d73-94cb-ee5dfce9ba83"
+#define BLE_UUID_TX_DATA "f235a225-6735-4d73-94cb-ee5dfce9ba83"
 
 #define MAX_COMMANDS 32
 
-#define BLE_CLEAR()                                                            \
-    do {                                                                       \
-        ble::tx_estring_value.clear();                                         \
-        ble::tx_float_value = 0.0;                                             \
-    } while (0)
-
-#define BLE_PRINT(x)                                                           \
-    do {                                                                       \
-        ble::tx_estring_value.append(x);                                       \
-    } while (0)
-
-#define BLE_FLUSH()                                                            \
-    do {                                                                       \
-        ble::tx_characteristic_string.writeValue(                              \
-            ble::tx_estring_value.c_str()                                      \
-        );                                                                     \
-    } while (0)
-
-#define BLE_READ_NEXT(var)                                                     \
-    do {                                                                       \
-        if (!ble::robot_cmd.get_next_value(var))                               \
-            return;                                                            \
-    } while (0)
-
-// CMD enum — keep in sync with ble_python/cmd_types.py
+// CMD enum -- keep in sync with ble_python/cmd_types.py
 enum CommandTypes {
     PING = 0,
     SEND_TWO_INTS = 1,
@@ -72,7 +46,7 @@ enum CommandTypes {
     SEND_PID_DATA = 25,
 };
 
-typedef void (*CommandHandler)();
+typedef void (*CommandHandler)(BLERequest &);
 
 namespace ble {
 
@@ -80,18 +54,15 @@ namespace ble {
 
     BLEService testService(BLE_UUID_TEST_SERVICE);
 
-    BLECStringCharacteristic
-        rx_characteristic_string(BLE_UUID_RX_STRING, BLEWrite, MAX_MSG_SIZE);
+    BLECharacteristic
+        rx_characteristic(BLE_UUID_RX_CMD, BLEWrite, MAX_MSG_SIZE);
 
     BLEFloatCharacteristic
         tx_characteristic_float(BLE_UUID_TX_FLOAT, BLERead | BLENotify);
 
-    BLECStringCharacteristic tx_characteristic_string(
-        BLE_UUID_TX_STRING, BLERead | BLENotify, MAX_MSG_SIZE
-    );
+    BLECharacteristic
+        tx_characteristic(BLE_UUID_TX_DATA, BLERead | BLENotify, MAX_MSG_SIZE);
 
-    RobotCommand robot_cmd(":|");
-    EString tx_estring_value;
     float tx_float_value = 0.0;
 
     long interval = 500;
@@ -119,10 +90,10 @@ namespace ble {
             }
         }
 
-        void dispatch_command(int cmd_type) {
+        void dispatch_command(int cmd_type, BLERequest &req) {
             if (cmd_type >= 0 && cmd_type < MAX_COMMANDS &&
                 command_handlers[cmd_type] != nullptr) {
-                command_handlers[cmd_type]();
+                command_handlers[cmd_type](req);
             } else {
                 SERIAL_PRINT(F("Invalid Command Type: "));
                 SERIAL_PRINTLN(cmd_type);
@@ -130,14 +101,10 @@ namespace ble {
         }
 
         void handle_command() {
-            robot_cmd.set_cmd_string(
-                rx_characteristic_string.value(),
-                rx_characteristic_string.valueLength()
+            BLERequest req(
+                rx_characteristic.value(), rx_characteristic.valueLength()
             );
-            int cmd_type = -1;
-            if (!robot_cmd.get_command_type(cmd_type))
-                return;
-            dispatch_command(cmd_type);
+            dispatch_command(req.cmd, req);
         }
 
     } // namespace methods
@@ -146,34 +113,28 @@ namespace ble {
 
     namespace commands {
 
-        void ping() {
-            tx_estring_value.clear();
-            tx_estring_value.append("PONG");
-            tx_characteristic_string.writeValue(tx_estring_value.c_str());
-            SERIAL_PRINT(F("Sent back: "));
-            SERIAL_PRINTLN(tx_estring_value.c_str());
+        void ping(BLERequest &req) {
+            BLEResponse res = req.new_response();
+            res.add("PONG");
+            res.flush();
+            SERIAL_PRINTLN(F("PING -> PONG"));
         }
 
-        void send_two_ints() {
-            int int_a, int_b;
-            if (!robot_cmd.get_next_value(int_a))
-                return;
-            if (!robot_cmd.get_next_value(int_b))
-                return;
+        void send_two_ints(BLERequest &req) {
+            int32_t int_a, int_b;
+            req.read(int_a);
+            req.read(int_b);
             SERIAL_PRINT(F("Two Integers: "));
             SERIAL_PRINT(int_a);
             SERIAL_PRINT(F(", "));
             SERIAL_PRINTLN(int_b);
         }
 
-        void send_three_floats() {
+        void send_three_floats(BLERequest &req) {
             float float_a, float_b, float_c;
-            if (!robot_cmd.get_next_value(float_a))
-                return;
-            if (!robot_cmd.get_next_value(float_b))
-                return;
-            if (!robot_cmd.get_next_value(float_c))
-                return;
+            req.read(float_a);
+            req.read(float_b);
+            req.read(float_c);
             SERIAL_PRINT(F("Three Floats: "));
             SERIAL_PRINT(float_a);
             SERIAL_PRINT(F(", "));
@@ -182,69 +143,59 @@ namespace ble {
             SERIAL_PRINTLN(float_c);
         }
 
-        void get_time_millis() {
-            int time_millis = millis();
-            float temp = getTempDegF();
-            tx_estring_value.clear();
-            tx_estring_value.append("T:");
-            tx_estring_value.append(time_millis);
-            tx_estring_value.append("|");
-            tx_estring_value.append(temp);
-            tx_characteristic_string.writeValue(tx_estring_value.c_str());
-            SERIAL_PRINT(F("Sent back: "));
-            SERIAL_PRINTLN(tx_estring_value.c_str());
+        void get_time_millis(BLERequest &req) {
+            BLEResponse res = req.new_response();
+            res.add((int32_t)millis());
+            res.add(getTempDegF());
+            res.flush();
         }
 
-        void echo() {
+        void echo(BLERequest &req) {
             char char_arr[MAX_MSG_SIZE];
-            if (!robot_cmd.get_next_value(char_arr))
-                return;
-            tx_estring_value.clear();
-            tx_estring_value.append("Robot Says -> ");
-            tx_estring_value.append(char_arr);
-            tx_characteristic_string.writeValue(tx_estring_value.c_str());
-            SERIAL_PRINT(F("Sent back: "));
-            SERIAL_PRINTLN(tx_estring_value.c_str());
+            req.read_str(char_arr);
+            BLEResponse res = req.new_response();
+            res.add("Robot Says -> ");
+            res.add(char_arr);
+            res.flush();
+            SERIAL_PRINT(F("Echo: "));
+            SERIAL_PRINTLN(char_arr);
         }
 
-        void dance() {
+        void dance(BLERequest &req) {
             SERIAL_PRINTLN(F("Look Ma, I'm Dancin'!"));
         }
 
-        void set_vel() { /* placeholder */ }
+        void set_vel(BLERequest &req) { /* placeholder */ }
 
-        void store_time_millis() {
-            int count;
-            if (!robot_cmd.get_next_value(count))
-                return;
+        void store_time_millis(BLERequest &req) {
+            int32_t count;
+            req.read(count);
             for (int i = 0; i < count; ++i) {
                 time_millis_buffer.push((int)millis());
                 temp_buffer.push(getTempDegF());
             }
         }
 
-        void send_time_millis() {
+        void send_time_millis(BLERequest &req) {
+            BLEResponse res = req.new_response();
             int time_millis;
             float temp;
             while (time_millis_buffer.pop(time_millis) &&
                    temp_buffer.pop(temp)) {
-                tx_estring_value.clear();
-                tx_estring_value.append("T:");
-                tx_estring_value.append(time_millis);
-                tx_estring_value.append("|");
-                tx_estring_value.append(temp);
-                tx_characteristic_string.writeValue(tx_estring_value.c_str());
-                SERIAL_PRINT(F("Sent back: "));
-                SERIAL_PRINTLN(tx_estring_value.c_str());
+                res.add((int32_t)time_millis);
+                res.add(temp);
+                res.flush();
+                delay(1);
             }
+            res.end();
         }
 
-        void start_recording() {
+        void start_recording(BLERequest &req) {
             recording = true;
             SERIAL_PRINTLN(F("Recording started"));
         }
 
-        void stop_recording() {
+        void stop_recording(BLERequest &req) {
             recording = false;
             SERIAL_PRINTLN(F("Recording stopped"));
         }
@@ -261,18 +212,12 @@ namespace ble {
         BLE.setAdvertisedService(testService);
 
         testService.addCharacteristic(tx_characteristic_float);
-        testService.addCharacteristic(tx_characteristic_string);
-        testService.addCharacteristic(rx_characteristic_string);
+        testService.addCharacteristic(tx_characteristic);
+        testService.addCharacteristic(rx_characteristic);
 
         BLE.addService(testService);
 
         tx_characteristic_float.writeValue(0.0);
-
-        tx_estring_value.clear();
-        tx_estring_value.append("[->");
-        tx_estring_value.append(9.0);
-        tx_estring_value.append("<-]");
-        tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
         SERIAL_PRINT(F("Advertising BLE with MAC: "));
         SERIAL_PRINTLN(BLE.address());
@@ -312,9 +257,14 @@ namespace ble {
         }
 
         // Read and dispatch commands
-        if (rx_characteristic_string.written()) {
+        if (rx_characteristic.written()) {
             methods::handle_command();
         }
     }
 
 } // namespace ble
+
+// Definition of ble_send_raw (declared in lib_BLEPacket.h).
+void ble_send_raw(const uint8_t *data, uint8_t len) {
+    ble::tx_characteristic.writeValue(data, len);
+}
