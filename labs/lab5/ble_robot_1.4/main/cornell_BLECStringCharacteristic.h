@@ -1,5 +1,4 @@
-#ifndef _BLE_CSTRING_CHARACTERISTIC_H_
-#define _BLE_CSTRING_CHARACTERISTIC_H_
+#pragma once
 
 #include <BLECharacteristic.h>
 
@@ -41,4 +40,3 @@ class BLECStringCharacteristic : public BLECharacteristic
   private:
 };
 
-#endif // _BLE_CSTRING_CHARACTERISTIC_H_

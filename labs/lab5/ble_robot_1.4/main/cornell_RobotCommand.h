@@ -1,5 +1,4 @@
-#ifndef ROBOT_COMMAND_H
-#define ROBOT_COMMAND_H
+#pragma once
 
 #define DELIM_SIZE 9
 
@@ -165,4 +164,3 @@ class RobotCommand
     }
 };
 
-#endif // ROBOT_COMMAND_H

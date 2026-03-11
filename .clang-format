@@ -1,0 +1,28 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+
+# Indent contents of namespaces
+NamespaceIndentation: All
+
+# Put closing paren on its own line when params/args wrap
+AlignAfterOpenBracket: BlockIndent
+BinPackParameters: false
+BinPackArguments: false
+
+# Brace style: opening brace on same line
+BreakBeforeBraces: Attach
+
+# Don't collapse short functions
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Pointer/reference alignment: & and * attach to variable name
+PointerAlignment: Right
+
+# Keep include order
+SortIncludes: false

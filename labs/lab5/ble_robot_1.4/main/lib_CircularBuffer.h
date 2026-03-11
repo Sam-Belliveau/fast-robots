@@ -1,5 +1,4 @@
-#ifndef CIRCULAR_BUFFER_H
-#define CIRCULAR_BUFFER_H
+#pragma once
 
 template<class T, int Size>
 struct CircularBuffer {
@@ -48,6 +47,11 @@ struct CircularBuffer {
         return data[(head - 1) & Mask];
     }
 
+    // Index from head: 0 = most recent, 1 = second most recent, etc.
+    const T& operator[](int i) const {
+        return data[(head - 1 - i) & Mask];
+    }
+
     const int size() const {
         return (head - tail) & Mask;
     }
@@ -68,4 +72,3 @@ struct CircularBuffer {
 
 
 
-#endif // ROBOT_COMMAND_H

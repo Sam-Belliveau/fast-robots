@@ -7,8 +7,8 @@
 
 #define MOTOR1_FWD A0
 #define MOTOR1_REV A1
-#define MOTOR2_REV A2
-#define MOTOR2_FWD A3
+#define MOTOR2_FWD A15
+#define MOTOR2_REV A16
 
 // Artemis Nano (Apollo3) analogWrite() range: 0-255
 #define PWM_MAX 255
@@ -30,34 +30,31 @@ void motors_stop() {
   motors_active = false;
 }
 
-void motors_init() {
-  analogWriteFrequency(1000); 
-  
-  pinMode(MOTOR1_FWD, OUTPUT);
-  pinMode(MOTOR1_REV, OUTPUT);
-  pinMode(MOTOR2_FWD, OUTPUT);
-  pinMode(MOTOR2_REV, OUTPUT);
-
+void test_motors() {
   // analogWrite(MOTOR1_FWD, 100);
   motors_stop();
+  Serial.print(F("MOTOR 2 FORWARD"));
   for (int k = 0; k <= 255; k += 1) {
     analogWrite(MOTOR2_FWD, k);
     delay(10);
   }
   motors_stop();
   delay(1000);
+  Serial.print(F("MOTOR 1 FORWARD"));
   for (int k = 0; k <= 255; k += 1) {
     analogWrite(MOTOR1_FWD, k);
     delay(10);
   }
   motors_stop();
   delay(1000);
+  Serial.print(F("MOTOR 2 REVERSE"));
   for (int k = 0; k <= 255; k += 1) {
     analogWrite(MOTOR2_REV, k);
     delay(10);
   }
   motors_stop();
   delay(1000);
+  Serial.print(F("MOTOR 1 REVERSE"));
   for (int k = 0; k <= 255; k += 1) {
     analogWrite(MOTOR1_REV, k);
     delay(10);
@@ -169,6 +166,15 @@ void register_motor_commands() {
   register_command(MOTOR_STOP, cmd_motor_stop);
   register_command(MOTOR_CAL, cmd_motor_cal);
   register_command(MOTOR_TIMEOUT, cmd_motor_timeout);
+}
+
+void motors_init() {
+  analogWriteFrequency(1000);
+
+  pinMode(MOTOR1_FWD, OUTPUT);
+  pinMode(MOTOR1_REV, OUTPUT);
+  pinMode(MOTOR2_FWD, OUTPUT);
+  pinMode(MOTOR2_REV, OUTPUT);
 }
 
 #endif // CMD_MOTORS_H

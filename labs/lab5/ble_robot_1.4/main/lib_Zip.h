@@ -1,5 +1,4 @@
-#ifndef ZIP_H
-#define ZIP_H
+#pragma once
 
 #include <utility>
 
@@ -21,4 +20,3 @@ inline Function zip(Function &&func, Iterator begin, Iterator end,
   return std::forward<Function>(func);
 }
 
-#endif // ZIP_H

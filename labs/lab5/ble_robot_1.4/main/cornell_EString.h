@@ -1,5 +1,4 @@
-#ifndef ESTRING_STRING_H
-#define ESTRING_STRING_H
+#pragma once
 
 #define MAX_MSG_SIZE 151 // +1 to account for null terminal
 
@@ -163,4 +162,3 @@ class EString
     }
 };
 
-#endif // ESTRING_STRING_H
