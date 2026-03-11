@@ -2,12 +2,17 @@
 
 import asyncio
 import dataclasses
+import sys
 import time
 from typing import Any
 
 from main_python.ble import BLEConnection
 
 from .discovery import CommandInfo
+
+
+def _error(msg: str) -> None:
+    print(f"[GUI ERROR] {msg}", file=sys.stderr)
 
 
 class BLEBridge:
@@ -44,7 +49,23 @@ class BLEBridge:
                 raw = params.get(field.name)
                 if raw is None and field.default is not dataclasses.MISSING:
                     continue
-                coerced[field.name] = _coerce(raw, field.type)
+                if raw is None:
+                    _error(
+                        f"{info.cmd_class.__name__}: "
+                        f"missing required param '{field.name}'"
+                    )
+                    raise ValueError(
+                        f"Missing required parameter: {field.name}"
+                    )
+                try:
+                    coerced[field.name] = _coerce(raw, field.type)
+                except (ValueError, TypeError) as e:
+                    _error(
+                        f"{info.cmd_class.__name__}: "
+                        f"failed to coerce '{field.name}'={raw!r} "
+                        f"to {field.type}: {e}"
+                    )
+                    raise
             cmd = info.cmd_class(**coerced)
             t0 = time.monotonic()
             result = await self._conn.execute(cmd)

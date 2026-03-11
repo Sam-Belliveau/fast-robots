@@ -6,6 +6,7 @@
 
 #include "subsystem_serial.h"
 #include "lib_BLEPacket.h"
+#include "lib_Exceptions.h"
 #include "lib_CircularBuffer.h"
 #include <ArduinoBLE.h>
 
@@ -83,19 +84,41 @@ namespace ble {
         }
 
         void dispatch_command(int cmd_type, BLERequest &req) {
-            if (cmd_type >= 0 && cmd_type < MAX_COMMANDS &&
-                command_handlers[cmd_type] != nullptr) {
-                command_handlers[cmd_type](req);
-            } else {
-                SERIAL_PRINT(F("Invalid Command Type: "));
-                SERIAL_PRINTLN(cmd_type);
+            if (cmd_type < 0 || cmd_type >= MAX_COMMANDS) {
+                ERROR_PRINT(F("Unknown command type: "));
+                ERROR_PRINTLN(cmd_type);
+                BLEResponse err = req.new_response();
+                err.add_error("Unknown command type");
+                err.end();
+                return;
             }
+            if (command_handlers[cmd_type] == nullptr) {
+                ERROR_PRINT(F("Unregistered command type: "));
+                ERROR_PRINTLN(cmd_type);
+                BLEResponse err = req.new_response();
+                err.add_error("Unregistered command");
+                err.end();
+                return;
+            }
+            command_handlers[cmd_type](req);
         }
 
         void handle_command() {
-            BLERequest req(
-                rx_characteristic.value(), rx_characteristic.valueLength()
-            );
+            int len = rx_characteristic.valueLength();
+            if (len < 3) {
+                ERROR_PRINT(F("Packet too short: "));
+                ERROR_PRINT(len);
+                ERROR_PRINTLN(F(" bytes (need at least 3)"));
+                return;
+            }
+            BLERequest req(rx_characteristic.value(), len);
+            INFO_PRINT(F("CMD "));
+            INFO_PRINT(req.cmd);
+            INFO_PRINT(F(" (req_id="));
+            INFO_PRINT(req.req_id);
+            INFO_PRINT(F(", len="));
+            INFO_PRINT(len);
+            INFO_PRINTLN(F(")"));
             dispatch_command(req.cmd, req);
         }
 
@@ -114,8 +137,8 @@ namespace ble {
 
         void send_two_ints(BLERequest &req) {
             int32_t int_a, int_b;
-            req.read(int_a);
-            req.read(int_b);
+            BLE_CHECK_READ(req, req.read(int_a), "int_a");
+            BLE_CHECK_READ(req, req.read(int_b), "int_b");
             SERIAL_PRINT(F("Two Integers: "));
             SERIAL_PRINT(int_a);
             SERIAL_PRINT(F(", "));
@@ -125,9 +148,9 @@ namespace ble {
 
         void send_three_floats(BLERequest &req) {
             float float_a, float_b, float_c;
-            req.read(float_a);
-            req.read(float_b);
-            req.read(float_c);
+            BLE_CHECK_READ(req, req.read(float_a), "float_a");
+            BLE_CHECK_READ(req, req.read(float_b), "float_b");
+            BLE_CHECK_READ(req, req.read(float_c), "float_c");
             SERIAL_PRINT(F("Three Floats: "));
             SERIAL_PRINT(float_a);
             SERIAL_PRINT(F(", "));
@@ -146,7 +169,7 @@ namespace ble {
 
         void echo(BLERequest &req) {
             char char_arr[MAX_MSG_SIZE];
-            req.read_str(char_arr);
+            BLE_CHECK_READ_STR(req, req.read_str(char_arr), "msg");
             BLEResponse res = req.new_response();
             res.add("Robot Says -> ");
             res.add(char_arr);
@@ -164,7 +187,7 @@ namespace ble {
 
         void store_time_millis(BLERequest &req) {
             int32_t count;
-            req.read(count);
+            BLE_CHECK_READ(req, req.read(count), "count");
             for (int i = 0; i < count; ++i) {
                 time_millis_buffer.push((int)millis());
                 temp_buffer.push(getTempDegF());

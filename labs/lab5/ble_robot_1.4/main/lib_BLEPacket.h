@@ -26,6 +26,7 @@ enum DataType : uint8_t {
     DT_F32 = 0x30,
 
     // Special
+    DT_ERR = 0xFE, // Error string: same encoding as DT_STR
     DT_END = 0xFF,
 };
 
@@ -73,6 +74,18 @@ struct BLEResponse {
         if (len + 2 + slen > MAX_MSG_SIZE)
             flush();
         buf[len++] = DT_STR;
+        buf[len++] = slen;
+        memcpy(buf + len, s, slen);
+        len += slen;
+    }
+
+    // Send an error string. Uses DT_ERR tag so the client can distinguish
+    // errors from normal string fields.
+    void add_error(const char *s) {
+        uint8_t slen = strlen(s);
+        if (len + 2 + slen > MAX_MSG_SIZE)
+            flush();
+        buf[len++] = DT_ERR;
         buf[len++] = slen;
         memcpy(buf + len, s, slen);
         len += slen;
@@ -130,10 +143,27 @@ struct BLERequest {
     // Returns false on type mismatch or insufficient data.
     template <typename T, DataType id = DataTypeToID<T>::value>
     bool read(T &out) const {
-        if (pos + 1 + (int)sizeof(T) > total_len)
+        if (pos + 1 + (int)sizeof(T) > total_len) {
+            ERROR_PRINT(F("read<"));
+            ERROR_PRINT(id);
+            ERROR_PRINT(F(">: unexpected end of request (need "));
+            ERROR_PRINT(1 + (int)sizeof(T));
+            ERROR_PRINT(F(" bytes, have "));
+            ERROR_PRINT(total_len - pos);
+            ERROR_PRINTLN(F(")"));
             return false;
-        if ((DataType)data[pos++] != id)
+        }
+        DataType actual = (DataType)data[pos++];
+        if (actual != id) {
+            ERROR_PRINT(F("read<"));
+            ERROR_PRINT(id);
+            ERROR_PRINT(F(">: incorrect datatype (expected 0x"));
+            ERROR_PRINT(id, HEX);
+            ERROR_PRINT(F(", got 0x"));
+            ERROR_PRINT(actual, HEX);
+            ERROR_PRINTLN(F(")"));
             return false;
+        }
         memcpy(&out, data + pos, sizeof(T));
         pos += sizeof(T);
         return true;
@@ -142,13 +172,30 @@ struct BLERequest {
     // String: verify DT_STR tag, read u8 length, copy chars.
     // Returns length of string, or -1 on failure.
     int read_str(char *out) const {
-        if (pos + 2 > total_len)
+        if (pos + 2 > total_len) {
+            ERROR_PRINTLN(
+                F("read_str: unexpected end of request")
+            );
             return -1;
-        if ((DataType)data[pos++] != DT_STR)
+        }
+        DataType actual = (DataType)data[pos++];
+        if (actual != DT_STR) {
+            ERROR_PRINT(F("read_str: incorrect datatype (expected 0x"));
+            ERROR_PRINT(DT_STR, HEX);
+            ERROR_PRINT(F(", got 0x"));
+            ERROR_PRINT(actual, HEX);
+            ERROR_PRINTLN(F(")"));
             return -1;
+        }
         uint8_t slen = data[pos++];
-        if (pos + slen > total_len)
+        if (pos + slen > total_len) {
+            ERROR_PRINT(F("read_str: string truncated (declared "));
+            ERROR_PRINT(slen);
+            ERROR_PRINT(F(" bytes, have "));
+            ERROR_PRINT(total_len - pos);
+            ERROR_PRINTLN(F(")"));
             return -1;
+        }
         memcpy(out, data + pos, slen);
         out[slen] = '\0';
         pos += slen;

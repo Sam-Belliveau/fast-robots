@@ -8,8 +8,8 @@
 
 #define MOTOR1_FWD A0
 #define MOTOR1_REV A1
-#define MOTOR2_REV A2
-#define MOTOR2_FWD A3
+#define MOTOR2_FWD A15
+#define MOTOR2_REV A16
 
 #define PWM_MAX 255
 
@@ -82,8 +82,8 @@ namespace motors {
 
         void motor(BLERequest &req) {
             int32_t left, right;
-            req.read(left);
-            req.read(right);
+            BLE_CHECK_READ(req, req.read(left), "left");
+            BLE_CHECK_READ(req, req.read(right), "right");
             left = constrain(left, -PWM_MAX, PWM_MAX);
             right = constrain(right, -PWM_MAX, PWM_MAX);
             methods::set(left, right);
@@ -104,7 +104,7 @@ namespace motors {
 
         void motor_cal(BLERequest &req) {
             float c;
-            req.read(c);
+            BLE_CHECK_READ(req, req.read(c), "cal");
             cal = c;
 
             BLEResponse res = req.new_response();
@@ -117,7 +117,7 @@ namespace motors {
 
         void motor_timeout(BLERequest &req) {
             int32_t timeout;
-            req.read(timeout);
+            BLE_CHECK_READ(req, req.read(timeout), "timeout");
             timeout_ms = (unsigned long)timeout;
             SERIAL_PRINT(F("Motor timeout: "));
             SERIAL_PRINT(timeout_ms);
@@ -134,6 +134,8 @@ namespace motors {
         pinMode(MOTOR1_REV, OUTPUT);
         pinMode(MOTOR2_FWD, OUTPUT);
         pinMode(MOTOR2_REV, OUTPUT);
+
+        methods::stop();
 
         ble::methods::register_command(MOTOR_CMD, commands::motor);
         ble::methods::register_command(MOTOR_STOP, commands::motor_stop);

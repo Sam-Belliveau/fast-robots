@@ -2,6 +2,7 @@
 
 import asyncio
 import platform
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,16 @@ from bleak import BleakClient, BleakScanner
 
 from ..commands import BLECommand
 from .packet import PacketReader, PacketWriter
+
+
+def _log(msg: str) -> None:
+    """Print a BLE log message to stderr."""
+    print(f"[BLE] {msg}", file=sys.stderr)
+
+
+def _error(msg: str) -> None:
+    """Print a BLE error to stderr."""
+    print(f"[BLE ERROR] {msg}", file=sys.stderr)
 
 
 class BLEConnection:
@@ -27,6 +38,7 @@ class BLEConnection:
         self._client: BleakClient | None = None
         self._next_req_id: int = 1
         self._pending: dict[int, tuple[BLECommand, asyncio.Future, list]] = {}
+        self._leftover: dict[int, bytes] = {}  # partial bytes per req_id
 
     async def connect(self, timeout: float = 10.0) -> None:
         if platform.system() == "Darwin":
@@ -76,14 +88,23 @@ class BLEConnection:
         future: asyncio.Future = loop.create_future()
         self._pending[req_id] = (command, future, [])
 
+        payload = writer.to_bytes()
+        _log(
+            f"TX {type(command).__name__} req_id={req_id} "
+            f"cmd_id={command.cmd_id()} ({len(payload)} bytes)"
+        )
         await self._client.write_gatt_char(
-            self._rx_cmd_uuid, writer.to_bytes(), response=False
+            self._rx_cmd_uuid, payload, response=False
         )
 
         try:
             return await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError:
             self._pending.pop(req_id, None)
+            _error(
+                f"{type(command).__name__} (req_id={req_id}) timed out "
+                f"after {timeout}s"
+            )
             raise TimeoutError(
                 f"Command {type(command).__name__} (req_id={req_id}) timed out"
             )
@@ -94,15 +115,42 @@ class BLEConnection:
 
         entry = self._pending.get(req_id)
         if entry is None:
+            _error(
+                f"Received notification for unknown req_id={req_id} "
+                f"(data={data.hex()})"
+            )
             return
 
         command, future, accumulated = entry
-        fields = reader.read_all()
+        try:
+            fields = reader.read_all()
+        except Exception as e:
+            # BLEError from DT_ERR or other parse failures
+            self._pending.pop(req_id, None)
+            _error(
+                f"{type(command).__name__} (req_id={req_id}): {e}"
+            )
+            if not future.done():
+                future.get_loop().call_soon_threadsafe(
+                    future.set_exception, e
+                )
+            return
         accumulated.extend(fields)
 
         if reader.has_end:
             self._pending.pop(req_id, None)
-            result = command.parse_response(accumulated)
+            try:
+                result = command.parse_response(accumulated)
+            except Exception as e:
+                _error(
+                    f"{type(command).__name__} (req_id={req_id}): "
+                    f"parse_response failed: {e} (fields={accumulated})"
+                )
+                if not future.done():
+                    future.get_loop().call_soon_threadsafe(
+                        future.set_exception, e
+                    )
+                return
             if not future.done():
                 future.get_loop().call_soon_threadsafe(future.set_result, result)
         else:

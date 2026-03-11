@@ -1,7 +1,18 @@
 """Binary BLE packet protocol matching lib_BLEPacket.h."""
 
 import struct
+import sys
 from enum import IntEnum
+
+
+def _warn(msg: str) -> None:
+    """Print a warning to stderr with a [BLE] prefix."""
+    print(f"[BLE WARNING] {msg}", file=sys.stderr)
+
+
+class BLEError(RuntimeError):
+    """Raised when the Arduino sends a DT_ERR response."""
+    pass
 
 
 class DataType(IntEnum):
@@ -13,6 +24,7 @@ class DataType(IntEnum):
     U16 = 0x21
     U32 = 0x22
     F32 = 0x30
+    ERR = 0xFE
     END = 0xFF
 
 
@@ -75,6 +87,7 @@ class PacketReader:
         self.req_id = struct.unpack_from("<H", self._data, 0)[0]
         self._pos = 2
         self._found_end = False
+        self._truncated = False
 
     def read(self) -> int | float | str | None:
         """Read the next tagged value. Returns None at DT_END or end of data."""
@@ -88,15 +101,45 @@ class PacketReader:
             self._found_end = True
             return None
 
-        if tag == DataType.STR:
+        if tag == DataType.ERR:
+            if self._pos >= len(self._data):
+                raise BLEError("Arduino error (truncated)")
             slen = self._data[self._pos]
             self._pos += 1
+            if self._pos + slen > len(self._data):
+                raise BLEError("Arduino error (truncated)")
+            msg = self._data[self._pos : self._pos + slen].decode("utf-8")
+            self._pos += slen
+            raise BLEError(msg)
+
+        if tag == DataType.STR:
+            if self._pos >= len(self._data):
+                self._pos -= 1  # back up to tag
+                self._truncated = True
+                return None
+            slen = self._data[self._pos]
+            self._pos += 1
+            if self._pos + slen > len(self._data):
+                self._pos -= 2  # back up to tag
+                self._truncated = True
+                return None
             s = self._data[self._pos : self._pos + slen].decode("utf-8")
             self._pos += slen
             return s
 
-        dt = DataType(tag)
+        try:
+            dt = DataType(tag)
+        except ValueError:
+            _warn(f"req_id={self.req_id}: unknown type tag 0x{tag:02X} at pos {self._pos - 1}")
+            return None
+
         fmt, size = _TYPE_FORMAT[dt]
+        if self._pos + size > len(self._data):
+            # Value is split across notification boundary.
+            # Back up to the tag byte so remaining() includes it.
+            self._pos -= 1
+            self._truncated = True
+            return None
         value = struct.unpack_from(fmt, self._data, self._pos)[0]
         self._pos += size
         return value
@@ -114,3 +157,11 @@ class PacketReader:
     @property
     def has_end(self) -> bool:
         return self._found_end
+
+    @property
+    def remaining(self) -> bytes:
+        """Unread bytes from the current position (for carrying over
+        partial values split across BLE notifications)."""
+        if self._pos < len(self._data):
+            return self._data[self._pos:]
+        return b""

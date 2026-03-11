@@ -79,8 +79,7 @@ namespace pid {
 
         void start(BLERequest &req) {
             int32_t duration;
-            req.read(duration);
-            duration = 5000;
+            BLE_CHECK_READ(req, req.read(duration), "duration");
             duration_ms = (unsigned long)duration;
 
             controller.reset();
@@ -109,7 +108,7 @@ namespace pid {
 
         void set_setpoint(BLERequest &req) {
             float sp;
-            req.read(sp);
+            BLE_CHECK_READ(req, req.read(sp), "setpoint");
             setpoint = sp;
             SERIAL_PRINT(F("PID setpoint: "));
             SERIAL_PRINTLN(sp);
@@ -118,11 +117,11 @@ namespace pid {
 
         void set_gains(BLERequest &req) {
             float kp, ki, kd;
-            req.read(kp);
-            req.read(ki);
-            ki = 0;
-            req.read(kd);
-            kd = 0;
+            BLE_CHECK_READ(req, req.read(kp), "kp");
+            BLE_CHECK_READ(req, req.read(ki), "ki");
+            ki = 0; // override with default
+            BLE_CHECK_READ(req, req.read(kd), "kd");
+            kd = 0; // override with default
             controller.kP = kp;
             controller.kI = ki;
             controller.kD = kd;
@@ -138,13 +137,13 @@ namespace pid {
         void set_params(BLERequest &req) {
             float cap, range, rc;
             int32_t db;
-            req.read(cap);
-            req.read(range);
-            range = 0;
-            req.read(rc);
-            rc = 0;
-            req.read(db);
-            db = 40;
+            BLE_CHECK_READ(req, req.read(cap), "cap");
+            BLE_CHECK_READ(req, req.read(range), "range");
+            range = 0; // override with default
+            BLE_CHECK_READ(req, req.read(rc), "rc");
+            rc = 0; // override with default
+            BLE_CHECK_READ(req, req.read(db), "deadband");
+            db = 40; // override with default
             controller.integrator_cap = cap;
             controller.integrator_range = range;
             controller.d_filter.rc = rc;
