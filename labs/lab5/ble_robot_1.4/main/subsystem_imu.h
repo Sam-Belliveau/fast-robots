@@ -87,8 +87,6 @@ namespace imu {
                     res.add(mx);
                     res.add(my);
                     res.add(mz);
-                    res.flush();
-                    delay(1);
                 },
                 times.begin(),
                 times.end(),

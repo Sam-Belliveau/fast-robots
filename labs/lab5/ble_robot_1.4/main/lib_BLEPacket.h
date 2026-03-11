@@ -50,35 +50,38 @@ DEFINE_TYPE_MAPPING(float, DT_F32)
 void ble_send_raw(const uint8_t *data, uint8_t len);
 
 // TX: builds and sends self-describing binary packets.
+// Buffer auto-flushes when full. Only call end() to finalize.
 struct BLEResponse {
     uint8_t len;
     uint8_t buf[MAX_MSG_SIZE];
 
     // Numeric types: tag is resolved via DataTypeToID<T>.
+    // Auto-flushes if the value would overflow the buffer.
     template <typename T, DataType id = DataTypeToID<T>::value>
     void add(const T &v) {
+        if (len + 1 + (int)sizeof(T) > MAX_MSG_SIZE)
+            flush();
         buf[len++] = id;
         memcpy(buf + len, &v, sizeof(T));
         len += sizeof(T);
     }
 
     // String specialization: DT_STR + u8 length + chars.
+    // Auto-flushes if the string would overflow the buffer.
     void add(const char *s) {
         uint8_t slen = strlen(s);
+        if (len + 2 + slen > MAX_MSG_SIZE)
+            flush();
         buf[len++] = DT_STR;
         buf[len++] = slen;
         memcpy(buf + len, s, slen);
         len += slen;
     }
 
-    // Send the current packet and reset for the next one (same req_id).
-    void flush() {
-        ble_send_raw(buf, len);
-        len = 2; // keep req_id prefix
-    }
-
-    // Send a DT_END marker and flush. Call once at the end of a response.
+    // Append DT_END and send. Call once at the end of a response.
     void end() {
+        if (len + 1 > MAX_MSG_SIZE)
+            flush();
         buf[len++] = DT_END;
         flush();
     }
@@ -89,6 +92,12 @@ struct BLEResponse {
     BLEResponse(uint16_t req_id) : len(0) {
         memcpy(buf, &req_id, 2);
         len = 2;
+    }
+
+    // Send the current buffer and reset for the next chunk (same req_id).
+    void flush() {
+        ble_send_raw(buf, len);
+        len = 2; // keep req_id prefix
     }
 };
 

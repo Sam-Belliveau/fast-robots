@@ -116,7 +116,7 @@ namespace ble {
         void ping(BLERequest &req) {
             BLEResponse res = req.new_response();
             res.add("PONG");
-            res.flush();
+            res.end();
             SERIAL_PRINTLN(F("PING -> PONG"));
         }
 
@@ -128,6 +128,7 @@ namespace ble {
             SERIAL_PRINT(int_a);
             SERIAL_PRINT(F(", "));
             SERIAL_PRINTLN(int_b);
+            req.new_response().end();
         }
 
         void send_three_floats(BLERequest &req) {
@@ -141,13 +142,14 @@ namespace ble {
             SERIAL_PRINT(float_b);
             SERIAL_PRINT(F(", "));
             SERIAL_PRINTLN(float_c);
+            req.new_response().end();
         }
 
         void get_time_millis(BLERequest &req) {
             BLEResponse res = req.new_response();
             res.add((int32_t)millis());
             res.add(getTempDegF());
-            res.flush();
+            res.end();
         }
 
         void echo(BLERequest &req) {
@@ -156,16 +158,17 @@ namespace ble {
             BLEResponse res = req.new_response();
             res.add("Robot Says -> ");
             res.add(char_arr);
-            res.flush();
+            res.end();
             SERIAL_PRINT(F("Echo: "));
             SERIAL_PRINTLN(char_arr);
         }
 
         void dance(BLERequest &req) {
             SERIAL_PRINTLN(F("Look Ma, I'm Dancin'!"));
+            req.new_response().end();
         }
 
-        void set_vel(BLERequest &req) { /* placeholder */ }
+        void set_vel(BLERequest &req) { req.new_response().end(); }
 
         void store_time_millis(BLERequest &req) {
             int32_t count;
@@ -174,6 +177,7 @@ namespace ble {
                 time_millis_buffer.push((int)millis());
                 temp_buffer.push(getTempDegF());
             }
+            req.new_response().end();
         }
 
         void send_time_millis(BLERequest &req) {
@@ -184,8 +188,6 @@ namespace ble {
                    temp_buffer.pop(temp)) {
                 res.add((int32_t)time_millis);
                 res.add(temp);
-                res.flush();
-                delay(1);
             }
             res.end();
         }
@@ -193,11 +195,13 @@ namespace ble {
         void start_recording(BLERequest &req) {
             recording = true;
             SERIAL_PRINTLN(F("Recording started"));
+            req.new_response().end();
         }
 
         void stop_recording(BLERequest &req) {
             recording = false;
             SERIAL_PRINTLN(F("Recording stopped"));
+            req.new_response().end();
         }
 
     } // namespace commands

@@ -97,12 +97,14 @@ namespace pid {
             SERIAL_PRINT(controller.kD);
             SERIAL_PRINT(F(" dur="));
             SERIAL_PRINTLN(duration_ms);
+            req.new_response().end();
         }
 
         void stop(BLERequest &req) {
             active = false;
             motors::methods::stop();
             SERIAL_PRINTLN(F("PID stopped"));
+            req.new_response().end();
         }
 
         void set_setpoint(BLERequest &req) {
@@ -111,6 +113,7 @@ namespace pid {
             setpoint = sp;
             SERIAL_PRINT(F("PID setpoint: "));
             SERIAL_PRINTLN(sp);
+            req.new_response().end();
         }
 
         void set_gains(BLERequest &req) {
@@ -129,6 +132,7 @@ namespace pid {
             SERIAL_PRINT(ki);
             SERIAL_PRINT(F(" "));
             SERIAL_PRINTLN(kd);
+            req.new_response().end();
         }
 
         void set_params(BLERequest &req) {
@@ -153,6 +157,7 @@ namespace pid {
             SERIAL_PRINT(rc);
             SERIAL_PRINT(F(" deadband="));
             SERIAL_PRINTLN(db);
+            req.new_response().end();
         }
 
         void send_data(BLERequest &req) {
@@ -165,8 +170,6 @@ namespace pid {
                     res.add((int32_t)p);
                     res.add((int32_t)i);
                     res.add((int32_t)d);
-                    res.flush();
-                    delay(1);
                 },
                 times.begin(),
                 times.end(),

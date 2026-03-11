@@ -93,11 +93,13 @@ namespace motors {
             SERIAL_PRINT(right);
             SERIAL_PRINT(F(" PWM_MAX="));
             SERIAL_PRINTLN(PWM_MAX);
+            req.new_response().end();
         }
 
         void motor_stop(BLERequest &req) {
             methods::stop();
             SERIAL_PRINTLN(F("Motors stopped"));
+            req.new_response().end();
         }
 
         void motor_cal(BLERequest &req) {
@@ -107,7 +109,7 @@ namespace motors {
 
             BLEResponse res = req.new_response();
             res.add(cal);
-            res.flush();
+            res.end();
 
             SERIAL_PRINT(F("Motor2 calibration: "));
             SERIAL_PRINTLN(cal);
@@ -120,6 +122,7 @@ namespace motors {
             SERIAL_PRINT(F("Motor timeout: "));
             SERIAL_PRINT(timeout_ms);
             SERIAL_PRINTLN(F("ms"));
+            req.new_response().end();
         }
 
     } // namespace commands

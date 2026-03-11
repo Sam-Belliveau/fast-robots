@@ -128,8 +128,6 @@ namespace tof {
                     res.add((int32_t)t);
                     res.add((int16_t)d);
                     res.add((int32_t)1); // sensor ID
-                    res.flush();
-                    delay(1);
                 },
                 times1.begin(),
                 times1.end(),
@@ -141,8 +139,6 @@ namespace tof {
                     res.add((int32_t)t);
                     res.add((int16_t)d);
                     res.add((int32_t)2); // sensor ID
-                    res.flush();
-                    delay(1);
                 },
                 times2.begin(),
                 times2.end(),
@@ -162,12 +158,14 @@ namespace tof {
             sensor1.setDistanceModeShort();
             sensor2.setDistanceModeShort();
             SERIAL_PRINTLN(F("ToF: short mode"));
+            req.new_response().end();
         }
 
         void long_mode(BLERequest &req) {
             sensor1.setDistanceModeLong();
             sensor2.setDistanceModeLong();
             SERIAL_PRINTLN(F("ToF: long mode"));
+            req.new_response().end();
         }
 
         void stats(BLERequest &req) {
@@ -193,7 +191,6 @@ namespace tof {
                 res.add((int32_t)n);
                 res.add(mean);
                 res.add(std_dev);
-                res.flush();
             }
 
             // Sensor 2 stats
@@ -216,7 +213,6 @@ namespace tof {
                 res.add((int32_t)n);
                 res.add(mean);
                 res.add(std_dev);
-                res.flush();
             }
 
             res.end();
