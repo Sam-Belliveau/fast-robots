@@ -34,30 +34,31 @@ namespace motors {
             active = false;
         }
 
-        static void set_motor(int fwd_pin, int rev_pin, int speed) {
-            SERIAL_PRINT(F("  set_motor fwd="));
-            SERIAL_PRINT(fwd_pin);
-            SERIAL_PRINT(F(" rev="));
-            SERIAL_PRINT(rev_pin);
-            SERIAL_PRINT(F(" speed="));
-            SERIAL_PRINTLN(speed);
-
-            if (speed > 0) {
-                analogWrite(rev_pin, 0);
-                analogWrite(fwd_pin, speed);
-            } else if (speed < 0) {
-                analogWrite(fwd_pin, 0);
-                analogWrite(rev_pin, -speed);
-            } else {
-                analogWrite(fwd_pin, 0);
-                analogWrite(rev_pin, 0);
-            }
-        }
-
         void set(int left, int right) {
-            int cal_right = constrain((int)(right * cal), -PWM_MAX, PWM_MAX);
-            set_motor(MOTOR1_FWD, MOTOR1_REV, left);
-            set_motor(MOTOR2_FWD, MOTOR2_REV, cal_right);
+            left = constrain(left, -PWM_MAX, PWM_MAX);
+            right = constrain((int)(right * cal), -PWM_MAX, PWM_MAX);
+
+            if (left > 0) {
+                analogWrite(MOTOR1_FWD, left);
+                analogWrite(MOTOR1_REV, 0);
+            } else if (left < 0) {
+                analogWrite(MOTOR1_REV, -left);
+                analogWrite(MOTOR1_FWD, 0);
+            } else {
+                analogWrite(MOTOR1_FWD, 0);
+                analogWrite(MOTOR1_REV, 0);
+            }
+
+            if (right > 0) {
+                analogWrite(MOTOR2_FWD, right);
+                analogWrite(MOTOR2_REV, 0);
+            } else if (right < 0) {
+                analogWrite(MOTOR2_REV, -right);
+                analogWrite(MOTOR2_FWD, 0);
+            } else {
+                analogWrite(MOTOR2_FWD, 0);
+                analogWrite(MOTOR2_REV, 0);
+            }
 
             active = (left != 0 || right != 0);
             if (active) {
