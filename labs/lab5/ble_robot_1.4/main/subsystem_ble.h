@@ -44,6 +44,7 @@ enum CommandTypes {
     PID_GAINS = 23,
     PID_PARAMS = 24,
     SEND_PID_DATA = 25,
+    MOTOR_TEST = 26,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

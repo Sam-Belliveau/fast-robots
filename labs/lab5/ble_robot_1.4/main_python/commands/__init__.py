@@ -62,6 +62,7 @@ from .tof import (
 from .motors import (
     MotorCmd as MotorCmd,
     MotorStop as MotorStop,
+    MotorTest as MotorTest,
     MotorCal as MotorCal,
     MotorTimeout as MotorTimeout,
 )

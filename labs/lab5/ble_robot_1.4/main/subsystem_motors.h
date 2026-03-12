@@ -115,6 +115,44 @@ namespace motors {
             SERIAL_PRINTLN(cal);
         }
 
+        void motor_test(BLERequest &req) {
+            methods::stop();
+            SERIAL_PRINTLN(F("Starting motor test...\n"));
+            SERIAL_PRINTLN(F("\tTesting MOTOR2_FWD..."));
+            for (int k = 0; k <= 255; k += 1) {
+                analogWrite(MOTOR2_FWD, k);
+                delay(10);
+            }
+            SERIAL_PRINTLN(F("\tFinished MOTOR2_FWD!\n"));
+            methods::stop();
+            delay(1000);
+            SERIAL_PRINTLN(F("\tTesting MOTOR1_FWD..."));
+            for (int k = 0; k <= 255; k += 1) {
+                analogWrite(MOTOR1_FWD, k);
+                delay(10);
+            }
+            SERIAL_PRINTLN(F("\tFinished MOTOR1_FWD!\n"));
+            methods::stop();
+            delay(1000);
+            SERIAL_PRINTLN(F("\tTesting MOTOR2_REV..."));
+            for (int k = 0; k <= 255; k += 1) {
+                analogWrite(MOTOR2_REV, k);
+                delay(10);
+            }
+            SERIAL_PRINTLN(F("\tFinished MOTOR2_REV!\n"));
+            methods::stop();
+            delay(1000);
+            SERIAL_PRINTLN(F("\tTesting MOTOR1_REV..."));
+            for (int k = 0; k <= 255; k += 1) {
+                analogWrite(MOTOR1_REV, k);
+                delay(10);
+            }
+            SERIAL_PRINTLN(F("\tFinished MOTOR1_REV!\n"));
+            methods::stop();
+            SERIAL_PRINTLN(F("Motor test complete"));
+            req.new_response().end();
+        }
+
         void motor_timeout(BLERequest &req) {
             int32_t timeout;
             BLE_CHECK_READ(req, req.read(timeout), "timeout");
@@ -130,6 +168,11 @@ namespace motors {
     // Init
 
     void init() {
+        analogReadResolution(8);
+        analogWriteResolution(8);
+
+        analogWriteFrequency(1000);
+
         pinMode(MOTOR1_FWD, OUTPUT);
         pinMode(MOTOR1_REV, OUTPUT);
         pinMode(MOTOR2_FWD, OUTPUT);
@@ -141,6 +184,7 @@ namespace motors {
         ble::methods::register_command(MOTOR_STOP, commands::motor_stop);
         ble::methods::register_command(MOTOR_CAL, commands::motor_cal);
         ble::methods::register_command(MOTOR_TIMEOUT, commands::motor_timeout);
+        ble::methods::register_command(MOTOR_TEST, commands::motor_test);
     }
 
     // Periodic

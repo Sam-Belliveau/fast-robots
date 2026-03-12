@@ -38,6 +38,14 @@ class MotorCal(BLECommand[float]):
 
 
 @dataclass
+class MotorTest(BLECommand[None]):
+    cmd_name = "MOTOR_TEST"
+    def write_params(self, w: PacketWriter) -> None: pass
+    def parse_response(self, fields: list[Any]) -> None:
+        return None
+
+
+@dataclass
 class MotorTimeout(BLECommand[None]):
     timeout_ms: int
     cmd_name = "MOTOR_TIMEOUT"
