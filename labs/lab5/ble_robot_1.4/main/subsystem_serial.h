@@ -4,7 +4,7 @@
 // Toggle SERIAL_ENABLED to 0 to disable INFO output globally.
 // ERROR output is always enabled regardless of this setting.
 
-#define SERIAL_ENABLED 1
+#define SERIAL_ENABLED 0
 
 // ERROR_PRINT/LN: Always prints, regardless of SERIAL_ENABLED.
 // Prefixed with "[ERROR] " for visibility.

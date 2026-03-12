@@ -6,10 +6,10 @@
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
 
-#define MOTOR1_FWD A0
-#define MOTOR1_REV A1
-#define MOTOR2_FWD A15
-#define MOTOR2_REV A16
+#define MOTOR1_FWD A1
+#define MOTOR1_REV A0
+#define MOTOR2_FWD A16
+#define MOTOR2_REV A15
 
 #define PWM_MAX 255
 
@@ -18,7 +18,7 @@ namespace motors {
     // Variables
 
     float cal = 1.0;
-    unsigned long timeout_ms = 0;
+    unsigned long timeout_ms = 1000;
     unsigned long start_time = 0;
     bool active = false;
 

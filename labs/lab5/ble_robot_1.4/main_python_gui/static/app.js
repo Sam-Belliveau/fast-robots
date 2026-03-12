@@ -5,27 +5,37 @@ let commandSchemas = {};
 
 function initWebSocket() {
     ws = new WebSocket(`ws://${location.host}/ws`);
-    ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "get_commands" }));
-    };
+    ws.onopen = () => { ws.send(JSON.stringify({type : "get_commands"})); };
     ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
-    ws.onclose = () => {
-        setTimeout(initWebSocket, 2000);
-    };
+    ws.onclose = () => { setTimeout(initWebSocket, 2000); };
 }
 
 function handleMessage(msg) {
     switch (msg.type) {
-        case "commands":
-            populateCommandDropdown(msg.commands);
-            break;
-        case "result":
-            renderResponse(msg);
-            break;
-        case "error":
-            renderError(msg);
-            break;
+    case "commands":
+        populateCommandDropdown(msg.commands);
+        break;
+    case "result":
+        renderResponse(msg);
+        break;
+    case "error":
+        renderError(msg);
+        break;
     }
+}
+
+// --- Helpers ---
+
+function makeId() {
+    return ("msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+}
+
+function wsSend(command, params, logToChat = true) {
+    const id = makeId();
+    if (logToChat)
+        appendSentBubble(id, command, params);
+    ws.send(JSON.stringify({type : "execute", id, command, params}));
+    return id;
 }
 
 // --- Command Dropdown ---
@@ -57,7 +67,7 @@ function populateCommandDropdown(commands) {
 
     select.innerHTML = '<option value="">Select command...</option>';
 
-    const order = ["Core", "Recording", "IMU", "ToF", "Motors", "PID"];
+    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID" ];
     order.forEach((cat) => {
         if (!groups[cat]) return;
         const optgroup = document.createElement("optgroup");
@@ -126,7 +136,8 @@ document.getElementById("param-fields").addEventListener("keydown", (e) => {
 function sendCommand() {
     const select = document.getElementById("cmd-select");
     const name = select.value;
-    if (!name) return;
+    if (!name)
+        return;
 
     const schema = commandSchemas[name];
     const params = {};
@@ -137,12 +148,7 @@ function sendCommand() {
         if (input) params[field.name] = input.value;
     });
 
-    const id =
-        "msg-" + Date.now() + "-" +
-        Math.random().toString(36).slice(2, 6);
-
-    appendSentBubble(id, name, params);
-    ws.send(JSON.stringify({ type: "execute", id, command: name, params }));
+    wsSend(name, params);
 }
 
 // --- Chat Rendering ---
@@ -163,9 +169,8 @@ function appendSentBubble(id, name, params) {
     if (paramKeys.length > 0) {
         const paramDiv = document.createElement("div");
         paramDiv.className = "params";
-        paramDiv.textContent = paramKeys
-            .map((k) => `${k}=${params[k]}`)
-            .join(", ");
+        paramDiv.textContent =
+            paramKeys.map((k) => `${k}=${params[k]}`).join(", ");
         msg.appendChild(paramDiv);
     }
 
@@ -179,10 +184,10 @@ function appendSentBubble(id, name, params) {
 }
 
 function renderResponse(msg) {
-    const bubble = document.querySelector(
-        `.message[data-id="${msg.id}"] .response`
-    );
-    if (!bubble) return;
+    const bubble =
+        document.querySelector(`.message[data-id="${msg.id}"] .response`);
+    if (!bubble)
+        return;
     bubble.className = "response";
 
     if (msg.html) {
@@ -220,10 +225,10 @@ function renderError(msg) {
         return;
     }
 
-    const bubble = document.querySelector(
-        `.message[data-id="${msg.id}"] .response`
-    );
-    if (!bubble) return;
+    const bubble =
+        document.querySelector(`.message[data-id="${msg.id}"] .response`);
+    if (!bubble)
+        return;
     bubble.className = "response";
     bubble.parentElement.classList.add("error");
     bubble.textContent = msg.message;
@@ -231,6 +236,335 @@ function renderError(msg) {
     const log = document.getElementById("chat-log");
     log.scrollTop = log.scrollHeight;
 }
+
+// ============================================================
+// PID Tuning Dashboard
+// ============================================================
+
+const pidFields = document.querySelectorAll("#pid-panel .pid-group label");
+
+pidFields.forEach((label) => {
+    const input = label.querySelector("input");
+    input.addEventListener("input", () => {
+        const committed = input.dataset.committed;
+        const dirty = input.value !== committed;
+        input.classList.toggle("dirty", dirty);
+        const span = label.querySelector(".pid-label");
+        let marker = span.querySelector(".dirty-marker");
+        if (dirty && !marker) {
+            marker = document.createElement("span");
+            marker.className = "dirty-marker";
+            marker.textContent = " *";
+            span.appendChild(marker);
+        } else if (!dirty && marker) {
+            marker.remove();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commitPidFields();
+    });
+});
+
+function commitPidFields() {
+    const get = (name) => {
+        const label = document.querySelector(
+            `#pid-panel label[data-pid="${name}"]`
+        );
+        return label.querySelector("input");
+    };
+
+    const kpIn = get("kp"), kiIn = get("ki"), kdIn = get("kd");
+    const spIn = get("setpoint");
+    const capIn = get("cap"), rangeIn = get("range");
+    const rcIn = get("rc"), dbIn = get("deadband");
+
+    // Check which groups are dirty
+    const gainsDirty =
+        [ kpIn, kiIn, kdIn ].some((i) => i.value !== i.dataset.committed);
+    const setpointDirty = spIn.value !== spIn.dataset.committed;
+    const paramsDirty = [ capIn, rangeIn, rcIn, dbIn ].some(
+        (i) => i.value !== i.dataset.committed
+    );
+
+    if (gainsDirty) {
+        wsSend("PIDGains", {
+            kp : kpIn.value,
+            ki : kiIn.value,
+            kd : kdIn.value,
+        });
+        markCommitted(kpIn);
+        markCommitted(kiIn);
+        markCommitted(kdIn);
+    }
+    if (setpointDirty) {
+        wsSend("PIDSetpoint", {setpoint : spIn.value});
+        markCommitted(spIn);
+    }
+    if (paramsDirty) {
+        wsSend("PIDParams", {
+            cap : capIn.value,
+            range : rangeIn.value,
+            rc : rcIn.value,
+            deadband : dbIn.value,
+        });
+        markCommitted(capIn);
+        markCommitted(rangeIn);
+        markCommitted(rcIn);
+        markCommitted(dbIn);
+    }
+
+    if (!gainsDirty && !setpointDirty && !paramsDirty) {
+        // Nothing dirty — still commit all as a "re-send"
+        wsSend("PIDGains", {
+            kp : kpIn.value,
+            ki : kiIn.value,
+            kd : kdIn.value,
+        });
+        wsSend("PIDSetpoint", {setpoint : spIn.value});
+        wsSend("PIDParams", {
+            cap : capIn.value,
+            range : rangeIn.value,
+            rc : rcIn.value,
+            deadband : dbIn.value,
+        });
+    }
+}
+
+function markCommitted(input) {
+    input.dataset.committed = input.value;
+    input.classList.remove("dirty");
+    const marker = input.closest("label").querySelector(".dirty-marker");
+    if (marker)
+        marker.remove();
+}
+
+document.getElementById("pid-start").addEventListener("click", () => {
+    // Commit any dirty fields first
+    commitPidFields();
+    const dur = document.querySelector(
+        '#pid-panel label[data-pid="duration"] input'
+    ).value;
+    wsSend("PIDStart", { duration_ms: dur });
+});
+
+document.getElementById(
+            "pid-stop"
+).addEventListener("click", () => { wsSend("PIDStop", {}); });
+
+document.getElementById(
+            "pid-data"
+).addEventListener("click", () => { wsSend("SendPIDData", {}); });
+
+// ============================================================
+// Joystick Dashboard
+// ============================================================
+
+const joystickCanvas = document.getElementById("joystick");
+const ctx = joystickCanvas.getContext("2d");
+const JOY_SIZE = 200;
+const JOY_RADIUS = JOY_SIZE / 2;
+const KNOB_RADIUS = 24;
+const MAX_PWM = 255;
+const SEND_INTERVAL_MS = 80;
+
+let joyX = 0; // normalized -1..1
+let joyY = 0; // normalized -1..1
+let joyActive = false;
+let joySendTimer = null;
+let lastSentL = 0;
+let lastSentR = 0;
+
+function drawJoystick() {
+    ctx.clearRect(0, 0, JOY_SIZE, JOY_SIZE);
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(JOY_RADIUS, JOY_RADIUS, JOY_RADIUS - 4, 0, Math.PI * 2);
+    ctx.strokeStyle = "#0f3460";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Crosshair
+    ctx.beginPath();
+    ctx.moveTo(JOY_RADIUS, 8);
+    ctx.lineTo(JOY_RADIUS, JOY_SIZE - 8);
+    ctx.moveTo(8, JOY_RADIUS);
+    ctx.lineTo(JOY_SIZE - 8, JOY_RADIUS);
+    ctx.strokeStyle = "#0f3460";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Knob position
+    const knobX = JOY_RADIUS + joyX * (JOY_RADIUS - KNOB_RADIUS - 4);
+    const knobY = JOY_RADIUS + joyY * (JOY_RADIUS - KNOB_RADIUS - 4);
+
+    // Knob
+    ctx.beginPath();
+    ctx.arc(knobX, knobY, KNOB_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = joyActive ? "#4ecca3" : "#3a6a8a";
+    ctx.fill();
+    ctx.strokeStyle = joyActive ? "#3ab88a" : "#0f3460";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function updateJoyFromEvent(e) {
+    const rect = joystickCanvas.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    const rawX = (clientX - rect.left - JOY_RADIUS) / (JOY_RADIUS - 4);
+    const rawY = (clientY - rect.top - JOY_RADIUS) / (JOY_RADIUS - 4);
+
+    // Clamp to unit circle
+    const mag = Math.sqrt(rawX * rawX + rawY * rawY);
+    if (mag > 1) {
+        joyX = rawX / mag;
+        joyY = rawY / mag;
+    } else {
+        joyX = rawX;
+        joyY = rawY;
+    }
+    drawJoystick();
+    updateMotorReadout();
+}
+
+function getMotorValues() {
+    // y is inverted: up (negative) = forward (positive PWM)
+    const fwd = -joyY;
+    const turn = joyX;
+    let left = Math.round((fwd + turn) * MAX_PWM);
+    let right = Math.round((fwd - turn) * MAX_PWM);
+    left = Math.max(-MAX_PWM, Math.min(MAX_PWM, left));
+    right = Math.max(-MAX_PWM, Math.min(MAX_PWM, right));
+    return {left, right};
+}
+
+function updateMotorReadout() {
+    const {left, right} = getMotorValues();
+    document.getElementById("motor-l").textContent = left;
+    document.getElementById("motor-r").textContent = right;
+}
+
+function sendMotorCmd() {
+    const {left, right} = getMotorValues();
+    if (left === lastSentL && right === lastSentR)
+        return;
+    lastSentL = left;
+    lastSentR = right;
+    wsSend("MotorCmd", {left : String(left), right : String(right)}, false);
+}
+
+function startJoy(e) {
+    e.preventDefault();
+    joyActive = true;
+    updateJoyFromEvent(e);
+    sendMotorCmd();
+    joySendTimer = setInterval(sendMotorCmd, SEND_INTERVAL_MS);
+}
+
+function moveJoy(e) {
+    if (!joyActive)
+        return;
+    e.preventDefault();
+    updateJoyFromEvent(e);
+}
+
+function endJoy(e) {
+    if (!joyActive)
+        return;
+    e.preventDefault();
+    joyActive = false;
+    joyX = 0;
+    joyY = 0;
+    drawJoystick();
+    updateMotorReadout();
+    clearInterval(joySendTimer);
+    joySendTimer = null;
+    // Send stop
+    lastSentL = 0;
+    lastSentR = 0;
+    wsSend("MotorCmd", {left : "0", right : "0"}, false);
+}
+
+joystickCanvas.addEventListener("mousedown", startJoy);
+window.addEventListener("mousemove", moveJoy);
+window.addEventListener("mouseup", endJoy);
+
+joystickCanvas.addEventListener("touchstart", startJoy, {passive : false});
+window.addEventListener("touchmove", moveJoy, {passive : false});
+window.addEventListener("touchend", endJoy);
+
+drawJoystick();
+
+// ============================================================
+// WASD Keyboard Controls
+// ============================================================
+
+const WASD_PWM = 250;
+const wasdKeys = {
+    w : false,
+    a : false,
+    s : false,
+    d : false
+};
+let wasdActive = false;
+let wasdLastL = 0;
+let wasdLastR = 0;
+
+function wasdUpdate() {
+    let fwd = 0;
+    let turn = 0;
+    if (wasdKeys.w)
+        fwd += 1;
+    if (wasdKeys.s)
+        fwd -= 1;
+    if (wasdKeys.a)
+        turn -= 1;
+    if (wasdKeys.d)
+        turn += 1;
+
+    let left = Math.round((fwd + turn) * WASD_PWM);
+    let right = Math.round((fwd - turn) * WASD_PWM);
+    left = Math.max(-MAX_PWM, Math.min(MAX_PWM, left));
+    right = Math.max(-MAX_PWM, Math.min(MAX_PWM, right));
+
+    if (left === wasdLastL && right === wasdLastR)
+        return;
+    wasdLastL = left;
+    wasdLastR = right;
+
+    document.getElementById("motor-l").textContent = left;
+    document.getElementById("motor-r").textContent = right;
+    wsSend("MotorCmd", {left : String(left), right : String(right)}, false);
+}
+
+window.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+    if (key in wasdKeys && !wasdKeys[key]) {
+        // Don't capture WASD when typing in an input
+        if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+        e.preventDefault();
+        wasdKeys[key] = true;
+        wasdActive = true;
+        wasdUpdate();
+    }
+});
+
+window.addEventListener("keyup", (e) => {
+    const key = e.key.toLowerCase();
+    if (key in wasdKeys) {
+        wasdKeys[key] = false;
+        wasdActive = Object.values(wasdKeys).some(Boolean);
+        wasdUpdate();
+    }
+});
 
 // --- Init ---
 initWebSocket();

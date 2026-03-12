@@ -12,13 +12,88 @@
             <h1>Robot Console</h1>
             <span id="status" class="connected">Connected</span>
         </header>
-        <div id="chat-log"></div>
-        <div id="command-bar">
-            <select id="cmd-select">
-                <option value="">Select command...</option>
-            </select>
-            <div id="param-fields"></div>
-            <button id="btn-send" disabled>Send</button>
+        <div id="main-content">
+            <div id="dashboards">
+                <!-- PID Tuning Panel -->
+                <div class="panel" id="pid-panel">
+                    <h2>PID Tuning</h2>
+                    <div class="pid-fields">
+                        <div class="pid-group">
+                            <h3>Gains</h3>
+                            <label data-pid="kp">
+                                <span class="pid-label">Kp</span>
+                                <input type="number" step="any" value="0.5" data-committed="0.5">
+                            </label>
+                            <label data-pid="ki">
+                                <span class="pid-label">Ki</span>
+                                <input type="number" step="any" value="0" data-committed="0">
+                            </label>
+                            <label data-pid="kd">
+                                <span class="pid-label">Kd</span>
+                                <input type="number" step="any" value="0" data-committed="0">
+                            </label>
+                        </div>
+                        <div class="pid-group">
+                            <h3>Setpoint</h3>
+                            <label data-pid="setpoint">
+                                <span class="pid-label">Target (mm)</span>
+                                <input type="number" step="any" value="304" data-committed="304">
+                            </label>
+                        </div>
+                        <div class="pid-group">
+                            <h3>Params</h3>
+                            <label data-pid="cap">
+                                <span class="pid-label">I Cap</span>
+                                <input type="number" step="any" value="0" data-committed="0">
+                            </label>
+                            <label data-pid="range">
+                                <span class="pid-label">I Range</span>
+                                <input type="number" step="any" value="0" data-committed="0">
+                            </label>
+                            <label data-pid="rc">
+                                <span class="pid-label">D RC</span>
+                                <input type="number" step="any" value="0" data-committed="0">
+                            </label>
+                            <label data-pid="deadband">
+                                <span class="pid-label">Deadband</span>
+                                <input type="number" step="1" value="40" data-committed="40">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="pid-actions">
+                        <label data-pid="duration">
+                            <span class="pid-label">Duration (ms)</span>
+                            <input type="number" step="1" value="5000">
+                        </label>
+                        <button id="pid-start">Start</button>
+                        <button id="pid-stop" class="btn-danger">Stop</button>
+                        <button id="pid-data">Get Data</button>
+                    </div>
+                </div>
+
+                <!-- Joystick Panel -->
+                <div class="panel" id="joystick-panel">
+                    <h2>Drive</h2>
+                    <div id="joystick-container">
+                        <canvas id="joystick" width="200" height="200"></canvas>
+                    </div>
+                    <div id="motor-readout">
+                        <span>L: <span id="motor-l">0</span></span>
+                        <span>R: <span id="motor-r">0</span></span>
+                    </div>
+                    <div id="wasd-hint">WASD to drive</div>
+                </div>
+            </div>
+            <div id="console-area">
+                <div id="chat-log"></div>
+                <div id="command-bar">
+                    <select id="cmd-select">
+                        <option value="">Select command...</option>
+                    </select>
+                    <div id="param-fields"></div>
+                    <button id="btn-send" disabled>Send</button>
+                </div>
+            </div>
         </div>
     </div>
     <script src="/static/app.js"></script>
