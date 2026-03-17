@@ -20,9 +20,11 @@ namespace pid {
 
     bool active = false;
     unsigned long start_time = 0;
-    unsigned long duration_ms = 5000;
+    unsigned long duration_ms = 3000;
     float setpoint = 304; // default distance in mm
-    int deadband = 60;    // minimum PWM to overcome static friction
+
+    const int in_deadband = 16;
+    int out_deadband = 120;
 
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> measurement;
@@ -39,12 +41,15 @@ namespace pid {
     namespace methods {
 
         static int to_pwm(float output) {
-            if (output > 0) {
-                return constrain((int)output + deadband, 0, PWM_MAX);
-            } else if (output < 0) {
-                return constrain((int)output - deadband, -PWM_MAX, 0);
+            float abs_v = fabs(output);
+            float sign = output > 0 ? 1.0 : -1.0;
+            if (abs_v <= in_deadband) {
+                return (int)(sign * abs_v *
+                             ((float)out_deadband / in_deadband));
             }
-            return 0;
+            return (int)(sign * (out_deadband + (abs_v - in_deadband) *
+                                                    (PWM_MAX - out_deadband) /
+                                                    (PWM_MAX - in_deadband)));
         }
 
         void update() {
@@ -157,7 +162,7 @@ namespace pid {
             controller.integrator_cap = cap;
             controller.integrator_range = range;
             controller.d_filter.rc = rc;
-            deadband = db;
+            out_deadband = db;
             SERIAL_PRINT(F("PID params: cap="));
             SERIAL_PRINT(cap);
             SERIAL_PRINT(F(" range="));
@@ -172,8 +177,7 @@ namespace pid {
         void send_data(BLERequest &req) {
             BLEResponse res = req.new_response();
             zip(
-                [&](
-                    int t,
+                [&](int t,
                     int meas,
                     int err,
                     int pwm,
@@ -181,8 +185,7 @@ namespace pid {
                     int mr,
                     int p,
                     int i,
-                    int d
-                ) {
+                    int d) {
                     res.add((int32_t)t);
                     res.add((int32_t)meas);
                     res.add((int32_t)err);
