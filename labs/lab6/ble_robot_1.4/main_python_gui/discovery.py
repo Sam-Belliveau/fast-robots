@@ -33,6 +33,9 @@ from main_python.commands import (
     PIDGains,
     PIDParams,
     SendPIDData,
+    KFParams,
+    KFReset,
+    SendKFData,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -63,6 +66,9 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     PIDGains,
     PIDParams,
     SendPIDData,
+    KFParams,
+    KFReset,
+    SendKFData,
 ]
 
 

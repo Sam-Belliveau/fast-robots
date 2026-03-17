@@ -71,7 +71,7 @@ namespace pid {
             int pwm = to_pwm(output);
             motors::methods::set(pwm, pwm);
 
-            times.push((int)(micros()));
+            times.push((int)(timer::methods::time_us()));
             measurement.push(distance);
             error_buf.push((int)(setpoint - distance));
             motor_out.push(pwm);
@@ -161,7 +161,7 @@ namespace pid {
             BLE_CHECK_READ(req, req.read(db), "deadband");
             controller.integrator_cap = cap;
             controller.integrator_range = range;
-            controller.d_filter.rc = rc;
+            controller.d_filter.set_rc(rc);
             out_deadband = db;
             SERIAL_PRINT(F("PID params: cap="));
             SERIAL_PRINT(cap);

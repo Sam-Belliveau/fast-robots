@@ -64,7 +64,7 @@ namespace tof {
             if (dt <= 0)
                 return dists[0];
 
-            int elapsed = (int)micros() - times[0];
+            int elapsed = (int)timer::methods::time_us() - times[0];
             if (elapsed > 500000)
                 return dists[0];
 
@@ -107,7 +107,7 @@ namespace tof {
             static State state1 = RESET;
             static State state2 = RESET;
 
-            const int time = micros();
+            const int time = timer::methods::time_us();
             int distance = -1;
 
             if (0 <= (distance = update(&state1, &sensor1))) {

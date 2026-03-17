@@ -1,9 +1,10 @@
 #pragma once
 
 #include "lib_LowPassFilter.h"
+#include "subsystem_timer.h"
 
 // PID controller with integrator wind-up protection and
-// derivative-on-measurement. Uses LowPassFilter for the derivative term.
+// derivative-on-measurement. Uses the timer subsystem's fixed dt.
 
 class PID {
   public:
@@ -15,29 +16,23 @@ class PID {
     float integrator_cap = 0;
     float integrator_range = 0;
 
-    // Low-pass filter for derivative term. Set d_filter.rc to control
-    // smoothing.
+    // Low-pass filter for derivative term. Call d_filter.set_rc() to
+    // control smoothing.
     LowPassFilter d_filter;
 
     void reset() {
         integral = 0;
         prev_error = 0;
-        prev_time = -1;
+        first = true;
         d_filter.reset();
     }
 
     // Compute PID output given a measurement.
-    // Calls micros() internally and tracks dt since last call.
+    // Uses timer::PERIOD_S as the fixed dt.
     float compute(float measurement, float setpoint = 0) {
-        long now_us = micros();
-        bool first = (prev_time == -1);
-        if (first)
-            prev_time = now_us - 1;
+        constexpr float dt = timer::PERIOD_S;
 
         float error = setpoint - measurement;
-
-        long dt_us = now_us - prev_time;
-        float dt = dt_us * 1e-6f;
 
         // Proportional
         p_out = kP * error;
@@ -59,6 +54,7 @@ class PID {
             d_out = 0;
             d_filter.reset();
             d_filter.filter(0);
+            first = false;
         } else {
             float raw_derivative = (prev_measurement - measurement) / dt;
             d_out = kD * d_filter.filter(raw_derivative);
@@ -66,7 +62,6 @@ class PID {
 
         prev_error = error;
         prev_measurement = measurement;
-        prev_time = now_us;
 
         return p_out + i_out + d_out;
     }
@@ -80,5 +75,5 @@ class PID {
     float integral = 0;
     float prev_error = 0;
     float prev_measurement = 0;
-    long prev_time = -1;
+    bool first = true;
 };

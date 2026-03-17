@@ -310,6 +310,23 @@ header h1 {
     color: #e94560;
 }
 
+/* CSV copy button */
+.btn-csv {
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid #0f3460;
+    border-radius: 3px;
+    background: #1a1a2e;
+    color: #a0a0c0;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.btn-csv:hover {
+    background: #0f3460;
+    color: #e0e0e0;
+}
+
 /* Command bar */
 #command-bar {
     display: flex;

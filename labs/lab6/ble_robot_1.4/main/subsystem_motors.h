@@ -4,6 +4,7 @@
 // Owns: motor pins, calibration, motor control functions with smoothing.
 
 #include "subsystem_serial.h"
+#include "subsystem_timer.h"
 #include "subsystem_ble.h"
 
 #define MOTOR1_FWD A1
@@ -25,8 +26,8 @@ namespace motors {
     float current_left = 0.0;
     float current_right = 0.0;
 
-    unsigned long last_update = 0;
-    const float motor_rc = 0.02; // seconds
+    constexpr float motor_rc = 0.02f; // seconds
+    constexpr float motor_alpha = timer::methods::alpha(motor_rc);
 
     unsigned long last_set = 0;
     const unsigned long watchdog_timeout_us = 500000; // 0.1 seconds
@@ -60,7 +61,6 @@ namespace motors {
             target_right = 0.0;
             current_left = 0.0;
             current_right = 0.0;
-            last_update = 0;
             last_set = 0;
             set_pwm(0, 0);
         }
@@ -68,29 +68,21 @@ namespace motors {
         void set(float left, float right) {
             target_left = constrain(left, -PWM_MAX, PWM_MAX);
             target_right = constrain(right, -PWM_MAX, PWM_MAX);
-            last_set = micros();
+            last_set = timer::methods::time_us();
         }
 
         static void update() {
-            unsigned long now = micros();
+            unsigned long now = timer::methods::time_us();
 
             // Watchdog: stop motors if set() hasn't been called recently
-            if (last_set != 0 &&
-                (now - last_set) > watchdog_timeout_us) {
+            if (last_set != 0 && (now - last_set) > watchdog_timeout_us) {
                 stop();
                 return;
             }
 
-            if (last_update == 0)
-                last_update = now - 1;
+            current_left += (target_left - current_left) * motor_alpha;
+            current_right += (target_right - current_right) * motor_alpha;
 
-            float dt = (now - last_update) * 1e-6;
-            float alpha = 1 - exp(-dt / motor_rc);
-
-            current_left += (target_left - current_left) * alpha;
-            current_right += (target_right - current_right) * alpha;
-
-            last_update = now;
             set_pwm((int)(current_left), (int)(current_right * cal));
         }
 
@@ -135,13 +127,14 @@ namespace motors {
             methods::stop();
             SERIAL_PRINTLN(F("Starting motor test..."));
 
-            const int pins[] = {
-                MOTOR2_FWD, MOTOR1_FWD, MOTOR2_REV, MOTOR1_REV};
+            const int pins[] = {MOTOR2_FWD, MOTOR1_FWD, MOTOR2_REV, MOTOR1_REV};
             const char *names[] = {
-                "MOTOR2_FWD", "MOTOR1_FWD", "MOTOR2_REV", "MOTOR1_REV"};
+                "MOTOR2_FWD", "MOTOR1_FWD", "MOTOR2_REV", "MOTOR1_REV"
+            };
 
             for (int i = 0; i < 4; i++) {
-                if (i > 0) delay(1000);
+                if (i > 0)
+                    delay(1000);
                 SERIAL_PRINT(F("\tTesting "));
                 SERIAL_PRINTLN(names[i]);
                 for (int k = 0; k <= 255; k++) {

@@ -113,6 +113,77 @@
                         </div>
                     </div>
 
+                    <!-- Kalman Panel -->
+                    <div class="panel" id="kf-panel">
+                        <h2>Kalman Filter</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Model</h3>
+                                <label data-kf="drag">
+                                    <span class="pid-label">Drag (1/s)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="1.0"
+                                        data-committed="1.0"
+                                    />
+                                </label>
+                                <label data-kf="momentum">
+                                    <span class="pid-label">Momentum</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="200"
+                                        data-committed="200"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Noise</h3>
+                                <label data-kf="sigma_1">
+                                    <span class="pid-label"
+                                        >Process pos (mm)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="50"
+                                        data-committed="50"
+                                    />
+                                </label>
+                                <label data-kf="sigma_2">
+                                    <span class="pid-label"
+                                        >Process vel (mm/s)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="50"
+                                        data-committed="50"
+                                    />
+                                </label>
+                                <label data-kf="sigma_3">
+                                    <span class="pid-label"
+                                        >Sensor ToF (mm)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="20"
+                                        data-committed="20"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <button id="kf-params">Send Params</button>
+                            <button id="kf-reset" class="btn-danger">
+                                Reset
+                            </button>
+                            <button id="kf-data">Get Data</button>
+                        </div>
+                    </div>
+
                     <!-- Joystick Panel -->
                     <div class="panel" id="joystick-panel">
                         <h2>Drive</h2>

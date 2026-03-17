@@ -39,22 +39,19 @@ namespace imu {
         void read() {
             if (!ok)
                 return;
-            const int time = micros();
-            const int last_time = times.is_empty() ? 0 : times.bottom();
-            if (time - last_time > 20000) {
-                if (myICM.dataReady()) {
-                    myICM.getAGMT();
-                    times.push(time);
-                    acc_x.push(myICM.accX());
-                    acc_y.push(myICM.accY());
-                    acc_z.push(myICM.accZ());
-                    gyr_x.push(myICM.gyrX());
-                    gyr_y.push(myICM.gyrY());
-                    gyr_z.push(myICM.gyrZ());
-                    mag_x.push(myICM.magX());
-                    mag_y.push(myICM.magY());
-                    mag_z.push(myICM.magZ());
-                }
+
+            if (myICM.dataReady()) {
+                myICM.getAGMT();
+                times.push(timer::methods::time_us());
+                acc_x.push(myICM.accX());
+                acc_y.push(myICM.accY());
+                acc_z.push(myICM.accZ());
+                gyr_x.push(myICM.gyrX());
+                gyr_y.push(myICM.gyrY());
+                gyr_z.push(myICM.gyrZ());
+                mag_x.push(myICM.magX());
+                mag_y.push(myICM.magY());
+                mag_z.push(myICM.magZ());
             }
         }
 

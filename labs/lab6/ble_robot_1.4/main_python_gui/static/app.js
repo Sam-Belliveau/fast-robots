@@ -74,6 +74,8 @@ function populateCommandDropdown(commands) {
             category = "ToF";
         else if (name === "SendIMUData")
             category = "IMU";
+        else if (name.startsWith("KF") || name === "SendKFData")
+            category = "Kalman";
         else if (
             ["StartRecording", "StopRecording", "StoreTimeMillis",
              "SendTimeMillis", "GetTimeMillis"].includes(name)
@@ -87,7 +89,7 @@ function populateCommandDropdown(commands) {
 
     select.innerHTML = '<option value="">Select command...</option>';
 
-    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID" ];
+    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID", "Kalman" ];
     order.forEach((cat) => {
         if (!groups[cat]) return;
         const optgroup = document.createElement("optgroup");
@@ -220,6 +222,27 @@ function renderResponse(msg) {
         const pre = document.createElement("pre");
         pre.textContent = JSON.stringify(msg.data, null, 2);
         bubble.appendChild(pre);
+    }
+
+    // CSV copy button for array data
+    if (Array.isArray(msg.data) && msg.data.length > 0 &&
+        typeof msg.data[0] === "object") {
+        const csvBtn = document.createElement("button");
+        csvBtn.className = "btn-csv";
+        csvBtn.textContent = "Copy CSV";
+        csvBtn.addEventListener("click", () => {
+            const keys = Object.keys(msg.data[0]);
+            const header = keys.join(",");
+            const rows = msg.data.map(
+                (row) => keys.map((k) => row[k]).join(",")
+            );
+            const csv = [header, ...rows].join("\n");
+            navigator.clipboard.writeText(csv).then(() => {
+                csvBtn.textContent = "Copied!";
+                setTimeout(() => { csvBtn.textContent = "Copy CSV"; }, 1500);
+            });
+        });
+        bubble.appendChild(csvBtn);
     }
 
     const elapsed = document.createElement("div");
@@ -375,6 +398,72 @@ document.getElementById(
 document.getElementById(
             "pid-data"
 ).addEventListener("click", () => { wsSend("SendPIDData", {}); });
+
+// ============================================================
+// Kalman Filter Dashboard
+// ============================================================
+
+const kfFields = document.querySelectorAll("#kf-panel .pid-group label");
+
+kfFields.forEach((label) => {
+    const input = label.querySelector("input");
+    input.addEventListener("input", () => {
+        const committed = input.dataset.committed;
+        const dirty = input.value !== committed;
+        input.classList.toggle("dirty", dirty);
+        const span = label.querySelector(".pid-label");
+        let marker = span.querySelector(".dirty-marker");
+        if (dirty && !marker) {
+            marker = document.createElement("span");
+            marker.className = "dirty-marker";
+            marker.textContent = " *";
+            span.appendChild(marker);
+        } else if (!dirty && marker) {
+            marker.remove();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commitKfFields();
+    });
+});
+
+function commitKfFields() {
+    const get = (name) => {
+        const label = document.querySelector(
+            `#kf-panel label[data-kf="${name}"]`
+        );
+        return label.querySelector("input");
+    };
+
+    const dragIn = get("drag");
+    const momIn = get("momentum");
+    const s1In = get("sigma_1");
+    const s2In = get("sigma_2");
+    const s3In = get("sigma_3");
+
+    const all = [dragIn, momIn, s1In, s2In, s3In];
+
+    wsSend("KFParams", {
+        drag: dragIn.value,
+        momentum: momIn.value,
+        sigma_1: s1In.value,
+        sigma_2: s2In.value,
+        sigma_3: s3In.value,
+    });
+
+    all.forEach(markCommitted);
+}
+
+document.getElementById("kf-params").addEventListener("click", commitKfFields);
+
+document.getElementById(
+    "kf-reset"
+).addEventListener("click", () => { wsSend("KFReset", {}); });
+
+document.getElementById(
+    "kf-data"
+).addEventListener("click", () => { wsSend("SendKFData", {}); });
 
 // ============================================================
 // Joystick Dashboard

@@ -82,6 +82,30 @@ def _render_pid(samples: list) -> str:
     return _fig_to_base64(fig)
 
 
+@register("SendKFData")
+def _render_kf(samples: list) -> str:
+    if not samples:
+        return "<em>No KF data</em>"
+    times = [s.time for s in samples]
+    t0 = times[0]
+    t_sec = [(t - t0) / 1e6 for t in times]
+
+    fig, (ax_dist, ax_vel) = plt.subplots(
+        2, 1, figsize=(8, 5), sharex=True
+    )
+
+    ax_dist.plot(t_sec, [s.dist for s in samples])
+    ax_dist.set_ylabel("Distance (mm)")
+
+    ax_vel.plot(t_sec, [s.vel for s in samples])
+    ax_vel.axhline(0, color="gray", linewidth=0.5)
+    ax_vel.set_ylabel("Velocity (mm/s)")
+    ax_vel.set_xlabel("Time (s)")
+
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
 @register("SendIMUData")
 def _render_imu(samples: list) -> str:
     if not samples:

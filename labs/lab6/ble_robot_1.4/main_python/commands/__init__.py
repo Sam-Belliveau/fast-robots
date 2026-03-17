@@ -75,3 +75,9 @@ from .pid import (
     SendPIDData as SendPIDData,
     PIDSample as PIDSample,
 )
+from .kalman import (
+    KFParams as KFParams,
+    KFReset as KFReset,
+    SendKFData as SendKFData,
+    KFSample as KFSample,
+)
