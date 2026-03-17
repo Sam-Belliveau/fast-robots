@@ -113,6 +113,78 @@
                         </div>
                     </div>
 
+                    <!-- Angle PID Panel -->
+                    <div class="panel" id="angle-pid-panel">
+                        <h2>Angle PD</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Gains</h3>
+                                <label data-apid="kp">
+                                    <span class="pid-label">Kp</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="4.0"
+                                        data-committed="4.0"
+                                    />
+                                </label>
+                                <label data-apid="kd">
+                                    <span class="pid-label">Kd</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.3"
+                                        data-committed="0.3"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Setpoint</h3>
+                                <label data-apid="setpoint">
+                                    <span class="pid-label">Target (deg)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="90"
+                                        data-committed="90"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Params</h3>
+                                <label data-apid="rc">
+                                    <span class="pid-label">D RC</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.01"
+                                        data-committed="0.01"
+                                    />
+                                </label>
+                                <label data-apid="deadband">
+                                    <span class="pid-label">Deadband</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="150"
+                                        data-committed="150"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <label data-apid="duration">
+                                <span class="pid-label">Duration (ms)</span>
+                                <input type="number" step="1" value="3000" />
+                            </label>
+                            <button id="apid-start">Start</button>
+                            <button id="apid-stop" class="btn-danger">
+                                Stop
+                            </button>
+                            <button id="apid-data">Get Data</button>
+                        </div>
+                    </div>
+
                     <!-- Kalman Panel -->
                     <div class="panel" id="kf-panel">
                         <h2>Kalman Filter</h2>

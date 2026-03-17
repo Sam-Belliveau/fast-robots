@@ -76,6 +76,8 @@ function populateCommandDropdown(commands) {
             category = "IMU";
         else if (name.startsWith("KF") || name === "SendKFData")
             category = "Kalman";
+        else if (name.startsWith("AnglePID") || name === "SendAnglePIDData")
+            category = "Angle PD";
         else if (
             ["StartRecording", "StopRecording", "StoreTimeMillis",
              "SendTimeMillis", "GetTimeMillis"].includes(name)
@@ -89,7 +91,7 @@ function populateCommandDropdown(commands) {
 
     select.innerHTML = '<option value="">Select command...</option>';
 
-    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID", "Kalman" ];
+    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID", "Angle PD", "Kalman" ];
     order.forEach((cat) => {
         if (!groups[cat]) return;
         const optgroup = document.createElement("optgroup");
@@ -382,6 +384,8 @@ function markCommitted(input) {
         marker.remove();
 }
 
+let pidAutoFetchTimer = null;
+
 document.getElementById("pid-start").addEventListener("click", () => {
     // Commit any dirty fields first
     commitPidFields();
@@ -389,6 +393,13 @@ document.getElementById("pid-start").addEventListener("click", () => {
         '#pid-panel label[data-pid="duration"] input'
     ).value;
     wsSend("PIDStart", { duration_ms: dur });
+
+    // Auto-fetch data after duration elapses
+    if (pidAutoFetchTimer) clearTimeout(pidAutoFetchTimer);
+    pidAutoFetchTimer = setTimeout(() => {
+        wsSend("SendPIDData", {});
+        pidAutoFetchTimer = null;
+    }, Number(dur) + 500);
 });
 
 document.getElementById(
@@ -398,6 +409,100 @@ document.getElementById(
 document.getElementById(
             "pid-data"
 ).addEventListener("click", () => { wsSend("SendPIDData", {}); });
+
+// ============================================================
+// Angle PD Dashboard
+// ============================================================
+
+const apidFields = document.querySelectorAll("#angle-pid-panel .pid-group label");
+
+apidFields.forEach((label) => {
+    const input = label.querySelector("input");
+    input.addEventListener("input", () => {
+        const committed = input.dataset.committed;
+        const dirty = input.value !== committed;
+        input.classList.toggle("dirty", dirty);
+        const span = label.querySelector(".pid-label");
+        let marker = span.querySelector(".dirty-marker");
+        if (dirty && !marker) {
+            marker = document.createElement("span");
+            marker.className = "dirty-marker";
+            marker.textContent = " *";
+            span.appendChild(marker);
+        } else if (!dirty && marker) {
+            marker.remove();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commitApidFields();
+    });
+});
+
+function commitApidFields() {
+    const get = (name) => {
+        const label = document.querySelector(
+            `#angle-pid-panel label[data-apid="${name}"]`
+        );
+        return label.querySelector("input");
+    };
+
+    const kpIn = get("kp"), kdIn = get("kd");
+    const spIn = get("setpoint");
+    const rcIn = get("rc"), dbIn = get("deadband");
+
+    const gainsDirty =
+        [ kpIn, kdIn ].some((i) => i.value !== i.dataset.committed);
+    const setpointDirty = spIn.value !== spIn.dataset.committed;
+    const paramsDirty =
+        [ rcIn, dbIn ].some((i) => i.value !== i.dataset.committed);
+
+    if (gainsDirty) {
+        wsSend("AnglePIDGains", { kp: kpIn.value, kd: kdIn.value });
+        markCommitted(kpIn);
+        markCommitted(kdIn);
+    }
+    if (setpointDirty) {
+        wsSend("AnglePIDSetpoint", { setpoint: spIn.value });
+        markCommitted(spIn);
+    }
+    if (paramsDirty) {
+        wsSend("AnglePIDParams", { rc: rcIn.value, deadband: dbIn.value });
+        markCommitted(rcIn);
+        markCommitted(dbIn);
+    }
+
+    if (!gainsDirty && !setpointDirty && !paramsDirty) {
+        wsSend("AnglePIDGains", { kp: kpIn.value, kd: kdIn.value });
+        wsSend("AnglePIDSetpoint", { setpoint: spIn.value });
+        wsSend("AnglePIDParams", { rc: rcIn.value, deadband: dbIn.value });
+    }
+}
+
+let apidAutoFetchTimer = null;
+
+document.getElementById("apid-start").addEventListener("click", () => {
+    commitApidFields();
+    const dur = document.querySelector(
+        '#angle-pid-panel label[data-apid="duration"] input'
+    ).value;
+    wsSend("AnglePIDStart", { duration_ms: dur });
+
+    // Auto-fetch data after duration elapses
+    if (apidAutoFetchTimer) clearTimeout(apidAutoFetchTimer);
+    apidAutoFetchTimer = setTimeout(() => {
+        wsSend("SendAnglePIDData", {});
+        apidAutoFetchTimer = null;
+    }, Number(dur) + 500);
+});
+
+document.getElementById(
+    "apid-stop"
+).addEventListener("click", () => { wsSend("AnglePIDStop", {}); });
+
+document.getElementById(
+    "apid-data"
+).addEventListener("click", () => { wsSend("SendAnglePIDData", {}); });
 
 // ============================================================
 // Kalman Filter Dashboard
@@ -490,7 +595,7 @@ function drawJoystick() {
     // Outer ring
     ctx.beginPath();
     ctx.arc(JOY_RADIUS, JOY_RADIUS, JOY_RADIUS - 4, 0, Math.PI * 2);
-    ctx.strokeStyle = "#0f3460";
+    ctx.strokeStyle = "#3c3c3c";
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -500,7 +605,7 @@ function drawJoystick() {
     ctx.lineTo(JOY_RADIUS, JOY_SIZE - 8);
     ctx.moveTo(8, JOY_RADIUS);
     ctx.lineTo(JOY_SIZE - 8, JOY_RADIUS);
-    ctx.strokeStyle = "#0f3460";
+    ctx.strokeStyle = "#3c3c3c";
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -511,9 +616,9 @@ function drawJoystick() {
     // Knob
     ctx.beginPath();
     ctx.arc(knobX, knobY, KNOB_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = joyActive ? "#4ecca3" : "#3a6a8a";
+    ctx.fillStyle = joyActive ? "#89d185" : "#555";
     ctx.fill();
-    ctx.strokeStyle = joyActive ? "#3ab88a" : "#0f3460";
+    ctx.strokeStyle = joyActive ? "#6bb365" : "#3c3c3c";
     ctx.lineWidth = 2;
     ctx.stroke();
 }

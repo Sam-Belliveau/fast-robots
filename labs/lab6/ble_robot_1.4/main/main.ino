@@ -7,18 +7,21 @@
 #include "subsystem_motors.h"
 #include "subsystem_pid.h"
 #include "subsystem_kalman.h"
+#include "subsystem_angle_pid.h"
 
 void setup() {
     serial::init();
     ble::init();
 
     WIRE_PORT.begin();
+    WIRE_PORT.setClock(400000);
 
     timer::init();
     imu::init();
     tof::init();
     motors::init();
     pid::init();
+    angle_pid::init();
     kalman::init();
 
     SERIAL_PRINT(F("Commands registered: "));
@@ -38,6 +41,7 @@ void loop() {
             motors::periodic();
             pid::periodic();
             kalman::periodic();
+            angle_pid::periodic();
             ble::periodic();
             timer::periodic();
         }

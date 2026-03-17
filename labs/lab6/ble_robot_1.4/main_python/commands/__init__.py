@@ -48,7 +48,7 @@ from .core import (
     TimeSample as TimeSample,
 )
 from .imu import (
-    SendIMUData as SendIMUData, 
+    SendIMUData as SendIMUData,
     IMUSample as IMUSample,
 )
 from .tof import (
@@ -80,4 +80,13 @@ from .kalman import (
     KFReset as KFReset,
     SendKFData as SendKFData,
     KFSample as KFSample,
+)
+from .angle_pid import (
+    AnglePIDStart as AnglePIDStart,
+    AnglePIDStop as AnglePIDStop,
+    AnglePIDSetpoint as AnglePIDSetpoint,
+    AnglePIDGains as AnglePIDGains,
+    AnglePIDParams as AnglePIDParams,
+    SendAnglePIDData as SendAnglePIDData,
+    AnglePIDSample as AnglePIDSample,
 )

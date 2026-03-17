@@ -36,6 +36,12 @@ from main_python.commands import (
     KFParams,
     KFReset,
     SendKFData,
+    AnglePIDStart,
+    AnglePIDStop,
+    AnglePIDSetpoint,
+    AnglePIDGains,
+    AnglePIDParams,
+    SendAnglePIDData,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -69,6 +75,12 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     KFParams,
     KFReset,
     SendKFData,
+    AnglePIDStart,
+    AnglePIDStop,
+    AnglePIDSetpoint,
+    AnglePIDGains,
+    AnglePIDParams,
+    SendAnglePIDData,
 ]
 
 

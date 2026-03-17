@@ -18,6 +18,7 @@ class IMUSample(NamedTuple):
     mx: float
     my: float
     mz: float
+    yaw: float
 
 
 @dataclass
@@ -25,4 +26,4 @@ class SendIMUData(BLECommand[list[IMUSample]]):
     cmd_name = "SEND_IMU_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[IMUSample]:
-        return _chunk(fields, 10, IMUSample)
+        return _chunk(fields, 11, IMUSample)

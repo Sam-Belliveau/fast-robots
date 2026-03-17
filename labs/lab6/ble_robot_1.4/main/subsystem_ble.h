@@ -14,7 +14,7 @@
 #define BLE_UUID_RX_CMD "9750f60b-9c9c-4158-b620-02ec9521cd99"
 #define BLE_UUID_TX_DATA "f235a225-6735-4d73-94cb-ee5dfce9ba83"
 
-#define MAX_COMMANDS 32
+#define MAX_COMMANDS 64
 
 // CMD enum -- keep in sync with ble_python/cmd_types.py
 enum CommandTypes {
@@ -48,6 +48,12 @@ enum CommandTypes {
     KF_PARAMS = 27,
     KF_RESET = 28,
     SEND_KF_DATA = 29,
+    ANGLE_PID_START = 30,
+    ANGLE_PID_STOP = 31,
+    ANGLE_PID_SETPOINT = 32,
+    ANGLE_PID_GAINS = 33,
+    ANGLE_PID_PARAMS = 34,
+    SEND_ANGLE_PID_DATA = 35,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

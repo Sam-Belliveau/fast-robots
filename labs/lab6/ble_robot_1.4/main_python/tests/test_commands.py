@@ -92,14 +92,15 @@ class TestResponseParsing:
 
     def test_send_imu_data_chunks(self):
         cmd = SendIMUData()
-        # One sample: time + 9 floats
-        fields = [1000, 0.1, 0.2, 0.3, 1.0, 2.0, 3.0, 10.0, 20.0, 30.0]
+        # One sample: time + 9 floats + yaw
+        fields = [1000, 0.1, 0.2, 0.3, 1.0, 2.0, 3.0, 10.0, 20.0, 30.0, 45.0]
         result = cmd.parse_response(fields)
         assert len(result) == 1
         assert isinstance(result[0], IMUSample)
         assert result[0].time == 1000
         assert result[0].ax == 0.1
         assert result[0].mz == 30.0
+        assert result[0].yaw == 45.0
 
     def test_send_tof_data_chunks(self):
         cmd = SendToFData()

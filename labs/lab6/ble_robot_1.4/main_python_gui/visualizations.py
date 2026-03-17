@@ -113,7 +113,7 @@ def _render_imu(samples: list) -> str:
     times = [s.time for s in samples]
     t0 = times[0]
     t_sec = [(t - t0) / 1000.0 for t in times]
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
     ax1.plot(t_sec, [s.ax for s in samples], label="ax")
     ax1.plot(t_sec, [s.ay for s in samples], label="ay")
     ax1.plot(t_sec, [s.az for s in samples], label="az")
@@ -123,8 +123,10 @@ def _render_imu(samples: list) -> str:
     ax2.plot(t_sec, [s.gy for s in samples], label="gy")
     ax2.plot(t_sec, [s.gz for s in samples], label="gz")
     ax2.set_ylabel("Gyro (dps)")
-    ax2.set_xlabel("Time (s)")
     ax2.legend()
+    ax3.plot(t_sec, [s.yaw for s in samples], color="purple")
+    ax3.set_ylabel("DMP Yaw (deg)")
+    ax3.set_xlabel("Time (s)")
     fig.tight_layout()
     return _fig_to_base64(fig)
 
@@ -191,3 +193,52 @@ def _render_tof(samples: list) -> str:
         parts.append(_fig_to_base64(fig))
 
     return "\n".join(parts)
+
+
+@register("SendAnglePIDData")
+def _render_angle_pid(samples: list) -> str:
+    if not samples:
+        return "<em>No Angle PID data</em>"
+    times = [s.time for s in samples]
+    t0 = times[0]
+    t_sec = [(t - t0) / 1e6 for t in times]
+
+    fig, (ax_angle, ax_err, ax_motor) = plt.subplots(
+        3, 1, figsize=(8, 8), sharex=True
+    )
+
+    # Angle (stored as deg * 10)
+    ax_angle.plot(
+        t_sec, [s.angle / 10.0 for s in samples], label="yaw"
+    )
+    ax_angle.set_ylabel("Angle (deg)")
+    ax_angle.legend()
+
+    # Error
+    ax_err.plot(
+        t_sec, [s.error / 10.0 for s in samples],
+        label="error", color="red"
+    )
+    ax_err.axhline(0, color="gray", linewidth=0.5)
+    ax_err.set_ylabel("Error (deg)")
+    ax_err.legend()
+
+    # Motor output
+    ax_motor.plot(
+        t_sec, [s.pwm for s in samples],
+        label="PWM target", color="orange", alpha=0.5
+    )
+    ax_motor.plot(
+        t_sec, [s.motor_left for s in samples],
+        label="motor L", color="blue"
+    )
+    ax_motor.plot(
+        t_sec, [s.motor_right for s in samples],
+        label="motor R", color="green"
+    )
+    ax_motor.set_ylabel("PWM")
+    ax_motor.set_xlabel("Time (s)")
+    ax_motor.legend()
+
+    fig.tight_layout()
+    return _fig_to_base64(fig)
