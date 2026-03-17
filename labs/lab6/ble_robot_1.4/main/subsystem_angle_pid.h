@@ -24,6 +24,7 @@ namespace angle_pid {
     float setpoint = 90;  // relative target angle in degrees
     float yaw_offset = 0; // yaw at start, used to make setpoint relative
 
+    const int in_deadband = 16;
     int out_deadband = 80;
 
     CircularBuffer<int, 0x100> times;
@@ -43,22 +44,20 @@ namespace angle_pid {
         static int to_pwm(float output) {
             float abs_v = fabs(output);
             float sign = output > 0 ? 1.0 : -1.0;
-            if (abs_v < 1.0)
-                return 0;
-            int pwm = (int)(sign *
-                            (out_deadband + abs_v *
-                                                (PWM_MAX - out_deadband) /
-                                                PWM_MAX));
+            if (abs_v <= in_deadband) {
+                return (int)(sign * abs_v *
+                             ((float)out_deadband / in_deadband));
+            }
+            int pwm = (int)(sign * (out_deadband +
+                                    (abs_v - in_deadband) *
+                                        (PWM_MAX - out_deadband) /
+                                        (PWM_MAX - in_deadband)));
             return constrain(pwm, -PWM_MAX, PWM_MAX);
         }
 
         // Wrap angle difference to [-180, 180]
         static float wrap_angle(float angle) {
-            while (angle > 180.0f)
-                angle -= 360.0f;
-            while (angle < -180.0f)
-                angle += 360.0f;
-            return angle;
+            return angle - 360.0f * roundf(angle / 360.0f);
         }
 
         void update() {
