@@ -164,7 +164,7 @@ The front ToF sensor data shows the robot reaches a maximum approach speed of ap
 
 The following plots show three PID runs. Each plot has three subplots: ToF distance vs. time, error vs. time, and motor PWM vs. time. The setpoint is 304mm (1 foot).
 
-**Forward approach from ~2m:**
+**Forward approach from ~1.2m:**
 
 ![Forward PID run](images/forwards_pid.png)
 
@@ -182,7 +182,7 @@ The robot tracks a foot moving toward and away from it, maintaining the 304mm se
   <source src="images/foot_pid.MOV" type="video/quicktime">
 </video>
 
-**Perturbation test (pushed backward):**
+**Starting close to the wall, driving backward to setpoint:**
 
 ![Backwards PID run](images/backwards_pid.png)
 
