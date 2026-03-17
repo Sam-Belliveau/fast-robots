@@ -4,6 +4,9 @@ import base64
 import io
 from typing import Any, Callable
 
+import numpy as np
+from scipy.interpolate import CubicSpline
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -106,18 +109,61 @@ def _render_imu(samples: list) -> str:
 def _render_tof(samples: list) -> str:
     if not samples:
         return "<em>No ToF data</em>"
-    by_sensor: dict[int, tuple[list, list]] = {}
+
+    by_sensor: dict[int, dict[str, list]] = {}
     t0 = samples[0].time
     for s in samples:
         if s.sensor_id not in by_sensor:
-            by_sensor[s.sensor_id] = ([], [])
-        by_sensor[s.sensor_id][0].append((s.time - t0) / 1000.0)
-        by_sensor[s.sensor_id][1].append(s.distance)
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for sid, (ts, ds) in sorted(by_sensor.items()):
-        ax.plot(ts, ds, label=f"Sensor {sid}")
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Distance (mm)")
-    ax.legend()
-    fig.tight_layout()
-    return _fig_to_base64(fig)
+            by_sensor[s.sensor_id] = {
+                "t": [], "raw": [], "extrap": [],
+                "t_raw": [], "raw_actual": [],
+            }
+        d = by_sensor[s.sensor_id]
+        t_sec = (s.time - t0) / 1e6
+        d["t"].append(t_sec)
+        d["extrap"].append(s.extrapolated)
+        # Only keep raw readings that are valid and represent new readings
+        if s.distance >= 0:
+            if not d["raw_actual"] or s.distance != d["raw_actual"][-1]:
+                d["t_raw"].append(t_sec)
+                d["raw_actual"].append(s.distance)
+
+    parts: list[str] = []
+    colors = {1: "tab:blue", 2: "tab:orange"}
+    for sid, d in sorted(by_sensor.items()):
+        c = colors.get(sid, None)
+        fig, (ax_dist, ax_speed) = plt.subplots(
+            2, 1, figsize=(8, 5), sharex=True
+        )
+        fig.suptitle(f"Sensor {sid}")
+
+        ax_dist.plot(
+            d["t_raw"], d["raw_actual"], "o",
+            label="raw", color=c, markersize=4,
+        )
+        ax_dist.plot(
+            d["t"], d["extrap"], "-",
+            label="extrap", color=c, alpha=0.7,
+        )
+        ax_dist.set_ylabel("Distance (mm)")
+        ax_dist.legend()
+
+        # Speed: derivative of cubic spline fit to raw readings
+        t_raw = d["t_raw"]
+        raw = d["raw_actual"]
+        if len(t_raw) >= 4:
+            cs = CubicSpline(t_raw, raw)
+            t_eval = np.linspace(t_raw[0], t_raw[-1], 200)
+            ax_speed.plot(
+                t_eval, cs(t_eval, 1),
+                color=c,
+            )
+
+        ax_speed.set_ylabel("Speed (mm/s)")
+        ax_speed.set_xlabel("Time (s)")
+        ax_speed.axhline(0, color="gray", linewidth=0.5)
+
+        fig.tight_layout()
+        parts.append(_fig_to_base64(fig))
+
+    return "\n".join(parts)

@@ -31,9 +31,9 @@ function handleMessage(msg) {
 // --- Connection Status ---
 
 const STATUS_LABELS = {
-    disconnected: "Disconnected",
-    scanning: "Scanning...",
-    connected: "Connected",
+    disconnected : "Disconnected",
+    scanning : "Scanning...",
+    connected : "Connected",
 };
 
 function updateConnectionStatus(status) {
@@ -527,7 +527,7 @@ drawJoystick();
 // WASD Keyboard Controls
 // ============================================================
 
-const WASD_PWM = 250;
+const WASD_PWM = 255;
 const wasdKeys = {
     w : false,
     a : false,

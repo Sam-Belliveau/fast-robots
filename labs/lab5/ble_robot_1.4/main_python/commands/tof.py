@@ -10,6 +10,7 @@ from ..ble.packet import PacketWriter
 class ToFSample(NamedTuple):
     time: int
     distance: int
+    extrapolated: int
     sensor_id: int
 
 
@@ -25,7 +26,7 @@ class SendToFData(BLECommand[list[ToFSample]]):
     cmd_name = "SEND_TOF_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[ToFSample]:
-        return _chunk(fields, 3, ToFSample)
+        return _chunk(fields, 4, ToFSample)
 
 
 @dataclass

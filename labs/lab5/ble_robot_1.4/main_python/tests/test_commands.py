@@ -103,11 +103,11 @@ class TestResponseParsing:
 
     def test_send_tof_data_chunks(self):
         cmd = SendToFData()
-        fields = [500, 150, 1, 600, 200, 2]
+        fields = [500, 150, 145, 1, 600, 200, 190, 2]
         result = cmd.parse_response(fields)
         assert len(result) == 2
-        assert result[0] == ToFSample(500, 150, 1)
-        assert result[1] == ToFSample(600, 200, 2)
+        assert result[0] == ToFSample(500, 150, 145, 1)
+        assert result[1] == ToFSample(600, 200, 190, 2)
 
     def test_tof_stats_chunks(self):
         cmd = ToFStats()

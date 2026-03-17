@@ -20,11 +20,18 @@ namespace tof {
     SFEVL53L1X sensor1(WIRE_PORT, TOF1_XSHUT_PIN);
     SFEVL53L1X sensor2(WIRE_PORT, TOF2_XSHUT_PIN);
 
-    CircularBuffer<int, 0x100> times1;
-    CircularBuffer<int, 0x100> dist1;
+    CircularBuffer<int, 0x10> times1;
+    CircularBuffer<int, 0x10> dist1;
 
-    CircularBuffer<int, 0x100> times2;
-    CircularBuffer<int, 0x100> dist2;
+    CircularBuffer<int, 0x10> times2;
+    CircularBuffer<int, 0x10> dist2;
+
+    CircularBuffer<int, 0x100> plot_times;
+    CircularBuffer<int, 0x100> plot_raw1;
+    CircularBuffer<int, 0x100> plot_extrap1;
+
+    CircularBuffer<int, 0x100> plot_raw2;
+    CircularBuffer<int, 0x100> plot_extrap2;
 
     enum State {
         RESET = 0,
@@ -36,8 +43,8 @@ namespace tof {
     namespace methods {
 
         static int extrapolate(
-            const CircularBuffer<int, 0x100> &times,
-            const CircularBuffer<int, 0x100> &dists
+            const CircularBuffer<int, 0x10> &times,
+            const CircularBuffer<int, 0x10> &dists
         ) {
             int n = times.size();
             if (n == 0)
@@ -112,6 +119,12 @@ namespace tof {
                 times2.push(time);
                 dist2.push(distance);
             }
+
+            plot_times.push(time);
+            plot_raw1.push(dist1.size() > 0 ? dist1[0] : -1);
+            plot_extrap1.push(current1());
+            plot_raw2.push(dist2.size() > 0 ? dist2[0] : -1);
+            plot_extrap2.push(current2());
         }
 
     } // namespace methods
@@ -124,25 +137,29 @@ namespace tof {
             BLEResponse res = req.new_response();
 
             zip(
-                [&](int t, int d) {
+                [&](int t, int d, int e) {
                     res.add((int32_t)t);
                     res.add((int16_t)d);
+                    res.add((int16_t)e);
                     res.add((int32_t)1); // sensor ID
                 },
-                times1.begin(),
-                times1.end(),
-                dist1.begin()
+                plot_times.begin(),
+                plot_times.end(),
+                plot_raw1.begin(),
+                plot_extrap1.begin()
             );
 
             zip(
-                [&](int t, int d) {
+                [&](int t, int d, int e) {
                     res.add((int32_t)t);
                     res.add((int16_t)d);
+                    res.add((int16_t)e);
                     res.add((int32_t)2); // sensor ID
                 },
-                times2.begin(),
-                times2.end(),
-                dist2.begin()
+                plot_times.begin(),
+                plot_times.end(),
+                plot_raw2.begin(),
+                plot_extrap2.begin()
             );
 
             res.end();
