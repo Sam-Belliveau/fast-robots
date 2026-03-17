@@ -256,6 +256,9 @@ namespace tof {
 
         SERIAL_PRINTLN(F("ToF sensor 1 online!"));
 
+        sensor1.setDistanceModeShort();
+        sensor2.setDistanceModeShort();
+
         ble::methods::register_command(SEND_TOF_DATA, commands::send_data);
         ble::methods::register_command(TOF_SHORT, commands::short_mode);
         ble::methods::register_command(TOF_LONG, commands::long_mode);

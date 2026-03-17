@@ -10,7 +10,10 @@ from ..ble.packet import PacketWriter
 class PIDSample(NamedTuple):
     time: int
     measurement: int
+    error: int
     pwm: int
+    motor_left: int
+    motor_right: int
     p: int
     i: int
     d: int
@@ -79,4 +82,4 @@ class SendPIDData(BLECommand[list[PIDSample]]):
     cmd_name = "SEND_PID_DATA"
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[PIDSample]:
-        return _chunk(fields, 6, PIDSample)
+        return _chunk(fields, 9, PIDSample)

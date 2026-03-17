@@ -21,12 +21,15 @@ namespace pid {
     bool active = false;
     unsigned long start_time = 0;
     unsigned long duration_ms = 5000;
-    float setpoint = 304; // default 1 foot in mm
-    int deadband = 40;    // minimum PWM to overcome static friction
+    float setpoint = 304; // default distance in mm
+    int deadband = 60;    // minimum PWM to overcome static friction
 
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> measurement;
+    CircularBuffer<int, 0x100> error_buf;
     CircularBuffer<int, 0x100> motor_out;
+    CircularBuffer<int, 0x100> motor_left;
+    CircularBuffer<int, 0x100> motor_right;
     CircularBuffer<int, 0x100> p_buf;
     CircularBuffer<int, 0x100> i_buf;
     CircularBuffer<int, 0x100> d_buf;
@@ -59,13 +62,16 @@ namespace pid {
             if (distance < 0)
                 return;
 
-            float output = controller.compute((float)distance, setpoint);
+            float output = -controller.compute((float)distance, setpoint);
             int pwm = to_pwm(output);
             motors::methods::set(pwm, pwm);
 
             times.push((int)(micros()));
             measurement.push(distance);
+            error_buf.push((int)(setpoint - distance));
             motor_out.push(pwm);
+            motor_left.push((int)(motors::current_left));
+            motor_right.push((int)(motors::current_right));
             p_buf.push((int)(controller.p_out));
             i_buf.push((int)(controller.i_out));
             d_buf.push((int)(controller.d_out));
@@ -83,6 +89,15 @@ namespace pid {
             duration_ms = (unsigned long)duration;
 
             controller.reset();
+            times.clear();
+            measurement.clear();
+            error_buf.clear();
+            motor_out.clear();
+            motor_left.clear();
+            motor_right.clear();
+            p_buf.clear();
+            i_buf.clear();
+            d_buf.clear();
             active = true;
             start_time = millis();
 
@@ -119,9 +134,7 @@ namespace pid {
             float kp, ki, kd;
             BLE_CHECK_READ(req, req.read(kp), "kp");
             BLE_CHECK_READ(req, req.read(ki), "ki");
-            ki = 0; // override with default
             BLE_CHECK_READ(req, req.read(kd), "kd");
-            kd = 0; // override with default
             controller.kP = kp;
             controller.kI = ki;
             controller.kD = kd;
@@ -139,11 +152,8 @@ namespace pid {
             int32_t db;
             BLE_CHECK_READ(req, req.read(cap), "cap");
             BLE_CHECK_READ(req, req.read(range), "range");
-            range = 0; // override with default
             BLE_CHECK_READ(req, req.read(rc), "rc");
-            rc = 0; // override with default
             BLE_CHECK_READ(req, req.read(db), "deadband");
-            db = 40; // override with default
             controller.integrator_cap = cap;
             controller.integrator_range = range;
             controller.d_filter.rc = rc;
@@ -162,10 +172,23 @@ namespace pid {
         void send_data(BLERequest &req) {
             BLEResponse res = req.new_response();
             zip(
-                [&](int t, int meas, int pwm, int p, int i, int d) {
+                [&](
+                    int t,
+                    int meas,
+                    int err,
+                    int pwm,
+                    int ml,
+                    int mr,
+                    int p,
+                    int i,
+                    int d
+                ) {
                     res.add((int32_t)t);
                     res.add((int32_t)meas);
+                    res.add((int32_t)err);
                     res.add((int32_t)pwm);
+                    res.add((int32_t)ml);
+                    res.add((int32_t)mr);
                     res.add((int32_t)p);
                     res.add((int32_t)i);
                     res.add((int32_t)d);
@@ -173,7 +196,10 @@ namespace pid {
                 times.begin(),
                 times.end(),
                 measurement.begin(),
+                error_buf.begin(),
                 motor_out.begin(),
+                motor_left.begin(),
+                motor_right.begin(),
                 p_buf.begin(),
                 i_buf.begin(),
                 d_buf.begin()

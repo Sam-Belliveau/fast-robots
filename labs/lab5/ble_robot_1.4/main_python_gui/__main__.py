@@ -10,9 +10,6 @@ from .server import create_app
 
 async def main():
     bridge = BLEBridge()
-    print("Connecting to robot...")
-    await bridge.connect()
-    print("Connected!")
 
     app = create_app(bridge)
     runner = web.AppRunner(app)
@@ -21,6 +18,8 @@ async def main():
     await site.start()
     print("Running on http://127.0.0.1:8080")
     print("Press Ctrl+C to quit")
+
+    bridge.start()  # begin scanning for robot in background
 
     try:
         await asyncio.Event().wait()

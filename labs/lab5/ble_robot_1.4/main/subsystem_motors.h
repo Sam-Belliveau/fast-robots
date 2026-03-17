@@ -1,7 +1,7 @@
 #pragma once
 
 // Motors subsystem
-// Owns: motor pins, calibration, timeout, motor control functions.
+// Owns: motor pins, calibration, motor control functions with smoothing.
 
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
@@ -18,61 +18,80 @@ namespace motors {
     // Variables
 
     float cal = 1.0;
-    unsigned long timeout_ms = 1000;
-    unsigned long start_time = 0;
-    bool active = false;
+
+    float target_left = 0.0;
+    float target_right = 0.0;
+
+    float current_left = 0.0;
+    float current_right = 0.0;
+
+    unsigned long last_update = 0;
+    const float motor_rc = 0.02; // seconds
+
+    unsigned long last_set = 0;
+    const unsigned long watchdog_timeout_us = 500000; // 0.1 seconds
 
     // Methods
 
     namespace methods {
 
-        void stop() {
-            analogWrite(MOTOR1_FWD, 0);
-            analogWrite(MOTOR1_REV, 0);
-            analogWrite(MOTOR2_FWD, 0);
-            analogWrite(MOTOR2_REV, 0);
-            active = false;
-        }
-
-        void set(int left, int right) {
+        static void set_pwm(int left, int right) {
             left = constrain(left, -PWM_MAX, PWM_MAX);
-            right = constrain((int)(right * cal), -PWM_MAX, PWM_MAX);
+            right = constrain(right, -PWM_MAX, PWM_MAX);
 
             if (left > 0) {
                 analogWrite(MOTOR1_FWD, left);
                 analogWrite(MOTOR1_REV, 0);
-            } else if (left < 0) {
-                analogWrite(MOTOR1_REV, -left);
-                analogWrite(MOTOR1_FWD, 0);
             } else {
                 analogWrite(MOTOR1_FWD, 0);
-                analogWrite(MOTOR1_REV, 0);
+                analogWrite(MOTOR1_REV, -left);
             }
-
             if (right > 0) {
                 analogWrite(MOTOR2_FWD, right);
                 analogWrite(MOTOR2_REV, 0);
-            } else if (right < 0) {
-                analogWrite(MOTOR2_REV, -right);
-                analogWrite(MOTOR2_FWD, 0);
             } else {
                 analogWrite(MOTOR2_FWD, 0);
-                analogWrite(MOTOR2_REV, 0);
-            }
-
-            active = (left != 0 || right != 0);
-            if (active) {
-                start_time = millis();
+                analogWrite(MOTOR2_REV, -right);
             }
         }
 
-        void check_timeout() {
-            if (active && timeout_ms > 0) {
-                if (millis() - start_time >= timeout_ms) {
-                    stop();
-                    SERIAL_PRINTLN(F("Motor timeout - stopped"));
-                }
+        void stop() {
+            target_left = 0.0;
+            target_right = 0.0;
+            current_left = 0.0;
+            current_right = 0.0;
+            last_update = 0;
+            last_set = 0;
+            set_pwm(0, 0);
+        }
+
+        void set(float left, float right) {
+            target_left = constrain(left, -PWM_MAX, PWM_MAX);
+            target_right = constrain(right, -PWM_MAX, PWM_MAX);
+            last_set = micros();
+        }
+
+        static void update() {
+            unsigned long now = micros();
+
+            // Watchdog: stop motors if set() hasn't been called recently
+            if (last_set != 0 &&
+                (now - last_set) > watchdog_timeout_us) {
+                stop();
+                return;
             }
+
+            if (last_update == 0)
+                last_update = now - 1;
+
+            float dt = (now - last_update) * 1e-6;
+            float alpha = 1 - exp(-dt / motor_rc);
+
+            current_left += (target_left - current_left) * alpha;
+            current_right += (target_right - current_right) * alpha;
+
+            last_update = now;
+            set_pwm((int)(current_left), (int)(current_right * cal));
         }
 
     } // namespace methods
@@ -85,15 +104,11 @@ namespace motors {
             int32_t left, right;
             BLE_CHECK_READ(req, req.read(left), "left");
             BLE_CHECK_READ(req, req.read(right), "right");
-            left = constrain(left, -PWM_MAX, PWM_MAX);
-            right = constrain(right, -PWM_MAX, PWM_MAX);
             methods::set(left, right);
             SERIAL_PRINT(F("Motors: L="));
             SERIAL_PRINT(left);
             SERIAL_PRINT(F(" R="));
-            SERIAL_PRINT(right);
-            SERIAL_PRINT(F(" PWM_MAX="));
-            SERIAL_PRINTLN(PWM_MAX);
+            SERIAL_PRINTLN(right);
             req.new_response().end();
         }
 
@@ -118,49 +133,25 @@ namespace motors {
 
         void motor_test(BLERequest &req) {
             methods::stop();
-            SERIAL_PRINTLN(F("Starting motor test...\n"));
-            SERIAL_PRINTLN(F("\tTesting MOTOR2_FWD..."));
-            for (int k = 0; k <= 255; k += 1) {
-                analogWrite(MOTOR2_FWD, k);
-                delay(10);
-            }
-            SERIAL_PRINTLN(F("\tFinished MOTOR2_FWD!\n"));
-            methods::stop();
-            delay(1000);
-            SERIAL_PRINTLN(F("\tTesting MOTOR1_FWD..."));
-            for (int k = 0; k <= 255; k += 1) {
-                analogWrite(MOTOR1_FWD, k);
-                delay(10);
-            }
-            SERIAL_PRINTLN(F("\tFinished MOTOR1_FWD!\n"));
-            methods::stop();
-            delay(1000);
-            SERIAL_PRINTLN(F("\tTesting MOTOR2_REV..."));
-            for (int k = 0; k <= 255; k += 1) {
-                analogWrite(MOTOR2_REV, k);
-                delay(10);
-            }
-            SERIAL_PRINTLN(F("\tFinished MOTOR2_REV!\n"));
-            methods::stop();
-            delay(1000);
-            SERIAL_PRINTLN(F("\tTesting MOTOR1_REV..."));
-            for (int k = 0; k <= 255; k += 1) {
-                analogWrite(MOTOR1_REV, k);
-                delay(10);
-            }
-            SERIAL_PRINTLN(F("\tFinished MOTOR1_REV!\n"));
-            methods::stop();
-            SERIAL_PRINTLN(F("Motor test complete"));
-            req.new_response().end();
-        }
+            SERIAL_PRINTLN(F("Starting motor test..."));
 
-        void motor_timeout(BLERequest &req) {
-            int32_t timeout;
-            BLE_CHECK_READ(req, req.read(timeout), "timeout");
-            timeout_ms = (unsigned long)timeout;
-            SERIAL_PRINT(F("Motor timeout: "));
-            SERIAL_PRINT(timeout_ms);
-            SERIAL_PRINTLN(F("ms"));
+            const int pins[] = {
+                MOTOR2_FWD, MOTOR1_FWD, MOTOR2_REV, MOTOR1_REV};
+            const char *names[] = {
+                "MOTOR2_FWD", "MOTOR1_FWD", "MOTOR2_REV", "MOTOR1_REV"};
+
+            for (int i = 0; i < 4; i++) {
+                if (i > 0) delay(1000);
+                SERIAL_PRINT(F("\tTesting "));
+                SERIAL_PRINTLN(names[i]);
+                for (int k = 0; k <= 255; k++) {
+                    analogWrite(pins[i], k);
+                    delay(10);
+                }
+                methods::stop();
+            }
+
+            SERIAL_PRINTLN(F("Motor test complete"));
             req.new_response().end();
         }
 
@@ -171,7 +162,6 @@ namespace motors {
     void init() {
         analogReadResolution(8);
         analogWriteResolution(8);
-
         analogWriteFrequency(1000);
 
         pinMode(MOTOR1_FWD, OUTPUT);
@@ -184,14 +174,13 @@ namespace motors {
         ble::methods::register_command(MOTOR_CMD, commands::motor);
         ble::methods::register_command(MOTOR_STOP, commands::motor_stop);
         ble::methods::register_command(MOTOR_CAL, commands::motor_cal);
-        ble::methods::register_command(MOTOR_TIMEOUT, commands::motor_timeout);
         ble::methods::register_command(MOTOR_TEST, commands::motor_test);
     }
 
     // Periodic
 
     void periodic() {
-        methods::check_timeout();
+        methods::update();
     }
 
 } // namespace motors

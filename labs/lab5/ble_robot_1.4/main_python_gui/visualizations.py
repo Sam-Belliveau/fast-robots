@@ -41,18 +41,40 @@ def _render_pid(samples: list) -> str:
         return "<em>No PID data</em>"
     times = [s.time for s in samples]
     t0 = times[0]
-    t_sec = [(t - t0) / 1000.0 for t in times]
-    fig, ax1 = plt.subplots(figsize=(8, 4))
-    ax1.plot(t_sec, [s.measurement for s in samples], label="measurement")
-    ax1.set_xlabel("Time (s)")
-    ax1.set_ylabel("Measurement")
-    ax2 = ax1.twinx()
-    ax2.plot(
-        t_sec, [s.pwm for s in samples],
-        color="orange", alpha=0.6, label="PWM"
+    t_sec = [(t - t0) / 1e6 for t in times]
+
+    fig, (ax_dist, ax_err, ax_motor) = plt.subplots(
+        3, 1, figsize=(8, 8), sharex=True
     )
-    ax2.set_ylabel("PWM")
-    fig.legend(loc="upper right")
+
+    # Distance / measurement
+    ax_dist.plot(t_sec, [s.measurement for s in samples], label="measurement")
+    ax_dist.set_ylabel("Distance (mm)")
+    ax_dist.legend()
+
+    # Error
+    ax_err.plot(t_sec, [s.error for s in samples], label="error", color="red")
+    ax_err.axhline(0, color="gray", linewidth=0.5)
+    ax_err.set_ylabel("Error (mm)")
+    ax_err.legend()
+
+    # Motor output (target PWM and smoothed)
+    ax_motor.plot(
+        t_sec, [s.pwm for s in samples],
+        label="PWM target", color="orange", alpha=0.5
+    )
+    ax_motor.plot(
+        t_sec, [s.motor_left for s in samples],
+        label="motor L", color="blue"
+    )
+    ax_motor.plot(
+        t_sec, [s.motor_right for s in samples],
+        label="motor R", color="green"
+    )
+    ax_motor.set_ylabel("PWM")
+    ax_motor.set_xlabel("Time (s)")
+    ax_motor.legend()
+
     fig.tight_layout()
     return _fig_to_base64(fig)
 

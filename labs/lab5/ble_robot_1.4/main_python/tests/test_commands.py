@@ -120,12 +120,17 @@ class TestResponseParsing:
 
     def test_send_pid_data_chunks(self):
         cmd = SendPIDData()
-        fields = [1000, 300, 100, 50, 10, 5, 2000, 280, 120, 60, 12, 6]
+        fields = [
+            1000, 300, -10, 100, 90, 85, 50, 10, 5,
+            2000, 280, -20, 120, 110, 105, 60, 12, 6,
+        ]
         result = cmd.parse_response(fields)
         assert len(result) == 2
         assert isinstance(result[0], PIDSample)
         assert result[0].time == 1000
+        assert result[0].error == -10
         assert result[0].pwm == 100
+        assert result[0].motor_left == 90
         assert result[1].measurement == 280
 
     def test_none_response_commands(self):

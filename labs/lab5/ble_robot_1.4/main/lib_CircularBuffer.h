@@ -35,6 +35,11 @@ struct CircularBuffer {
         }
     }
 
+    void clear() {
+        head = 0;
+        tail = 0;
+    }
+
     const bool is_empty() const {
         return head == tail;
     }

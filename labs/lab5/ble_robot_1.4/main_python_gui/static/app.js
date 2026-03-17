@@ -1,5 +1,6 @@
 let ws;
 let commandSchemas = {};
+let robotConnected = false;
 
 // --- WebSocket ---
 
@@ -21,7 +22,26 @@ function handleMessage(msg) {
     case "error":
         renderError(msg);
         break;
+    case "status":
+        updateConnectionStatus(msg.status);
+        break;
     }
+}
+
+// --- Connection Status ---
+
+const STATUS_LABELS = {
+    disconnected: "Disconnected",
+    scanning: "Scanning...",
+    connected: "Connected",
+};
+
+function updateConnectionStatus(status) {
+    robotConnected = status === "connected";
+    const el = document.getElementById("status");
+    el.textContent = STATUS_LABELS[status] || status;
+    el.className = status;
+    updateSendButton();
 }
 
 // --- Helpers ---
@@ -122,7 +142,7 @@ document.getElementById("cmd-select").addEventListener("change", (e) => {
 function updateSendButton() {
     const btn = document.getElementById("btn-send");
     const selected = document.getElementById("cmd-select").value;
-    btn.disabled = !selected;
+    btn.disabled = !selected || !robotConnected;
 }
 
 // --- Send Command ---

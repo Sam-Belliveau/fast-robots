@@ -39,7 +39,24 @@ header h1 {
 #status {
     font-size: 12px;
     font-weight: 500;
+}
+
+#status.connected {
     color: #4ecca3;
+}
+
+#status.disconnected {
+    color: #e94560;
+}
+
+#status.scanning {
+    color: #f0a500;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
 }
 
 /* Main layout */
