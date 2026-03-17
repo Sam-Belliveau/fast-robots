@@ -169,7 +169,7 @@ The following plots show three PID runs. Each plot has three subplots: ToF dista
 ![Forward PID run](images/forwards_pid.png)
 
 <video controls width="100%">
-  <source src="images/forwards_pid.MOV" type="video/quicktime">
+  <source src="images/forwards_pid.MOV" type="video/mp4">
 </video>
 
 **Perturbation test (foot moving back and forth):**
@@ -179,7 +179,7 @@ The robot tracks a foot moving toward and away from it, maintaining the 304mm se
 ![Foot PID run](images/foot_pid.png)
 
 <video controls width="100%">
-  <source src="images/foot_pid.MOV" type="video/quicktime">
+  <source src="images/foot_pid.MOV" type="video/mp4">
 </video>
 
 **Starting close to the wall, driving backward to setpoint:**
@@ -187,5 +187,5 @@ The robot tracks a foot moving toward and away from it, maintaining the 304mm se
 ![Backwards PID run](images/backwards_pid.png)
 
 <video controls width="100%">
-  <source src="images/backwards_pid.MOV" type="video/quicktime">
+  <source src="images/backwards_pid.MOV" type="video/mp4">
 </video>
