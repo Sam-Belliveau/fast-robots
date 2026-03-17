@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Robot BLE Console</title>
+        <link rel="stylesheet" href="/static/style.css" />
+    </head>
+    <body>
+        <div id="app">
+            <header>
+                <h1>Robot Console</h1>
+                <span id="status" class="disconnected">Disconnected</span>
+            </header>
+            <div id="main-content">
+                <div id="dashboards">
+                    <!-- PID Tuning Panel -->
+                    <div class="panel" id="pid-panel">
+                        <h2>PID Tuning</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Gains</h3>
+                                <label data-pid="kp">
+                                    <span class="pid-label">Kp</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.8"
+                                        data-committed="0.8"
+                                    />
+                                </label>
+                                <label data-pid="ki">
+                                    <span class="pid-label">Ki</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0"
+                                        data-committed="0"
+                                    />
+                                </label>
+                                <label data-pid="kd">
+                                    <span class="pid-label">Kd</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.15"
+                                        data-committed="0.15"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Setpoint</h3>
+                                <label data-pid="setpoint">
+                                    <span class="pid-label">Target (mm)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="304"
+                                        data-committed="304"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Params</h3>
+                                <label data-pid="cap">
+                                    <span class="pid-label">I Cap</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0"
+                                        data-committed="0"
+                                    />
+                                </label>
+                                <label data-pid="range">
+                                    <span class="pid-label">I Range</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0"
+                                        data-committed="0"
+                                    />
+                                </label>
+                                <label data-pid="rc">
+                                    <span class="pid-label">D RC</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.02"
+                                        data-committed="0.02"
+                                    />
+                                </label>
+                                <label data-pid="deadband">
+                                    <span class="pid-label">Deadband</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="120"
+                                        data-committed="120"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <label data-pid="duration">
+                                <span class="pid-label">Duration (ms)</span>
+                                <input type="number" step="1" value="3000" />
+                            </label>
+                            <button id="pid-start">Start</button>
+                            <button id="pid-stop" class="btn-danger">
+                                Stop
+                            </button>
+                            <button id="pid-data">Get Data</button>
+                        </div>
+                    </div>
+
+                    <!-- Angle PID Panel -->
+                    <div class="panel" id="angle-pid-panel">
+                        <h2>Angle PD</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Gains</h3>
+                                <label data-apid="kp">
+                                    <span class="pid-label">Kp</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="4.0"
+                                        data-committed="4.0"
+                                    />
+                                </label>
+                                <label data-apid="kd">
+                                    <span class="pid-label">Kd</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.3"
+                                        data-committed="0.3"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Setpoint</h3>
+                                <label data-apid="setpoint">
+                                    <span class="pid-label">Target (deg)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="90"
+                                        data-committed="90"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Params</h3>
+                                <label data-apid="rc">
+                                    <span class="pid-label">D RC</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.01"
+                                        data-committed="0.01"
+                                    />
+                                </label>
+                                <label data-apid="deadband">
+                                    <span class="pid-label">Deadband</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="150"
+                                        data-committed="150"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <label data-apid="duration">
+                                <span class="pid-label">Duration (ms)</span>
+                                <input type="number" step="1" value="3000" />
+                            </label>
+                            <button id="apid-start">Start</button>
+                            <button id="apid-stop" class="btn-danger">
+                                Stop
+                            </button>
+                            <button id="apid-data">Get Data</button>
+                        </div>
+                    </div>
+
+                    <!-- Kalman Panel -->
+                    <div class="panel" id="kf-panel">
+                        <h2>Kalman Filter</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Model</h3>
+                                <label data-kf="drag">
+                                    <span class="pid-label">Drag (1/s)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="1.0"
+                                        data-committed="1.0"
+                                    />
+                                </label>
+                                <label data-kf="momentum">
+                                    <span class="pid-label">Momentum</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="200"
+                                        data-committed="200"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Noise</h3>
+                                <label data-kf="sigma_1">
+                                    <span class="pid-label"
+                                        >Process pos (mm)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="50"
+                                        data-committed="50"
+                                    />
+                                </label>
+                                <label data-kf="sigma_2">
+                                    <span class="pid-label"
+                                        >Process vel (mm/s)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="50"
+                                        data-committed="50"
+                                    />
+                                </label>
+                                <label data-kf="sigma_3">
+                                    <span class="pid-label"
+                                        >Sensor ToF (mm)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="20"
+                                        data-committed="20"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <button id="kf-params">Send Params</button>
+                            <button id="kf-reset" class="btn-danger">
+                                Reset
+                            </button>
+                            <button id="kf-data">Get Data</button>
+                        </div>
+                    </div>
+
+                    <!-- Joystick Panel -->
+                    <div class="panel" id="joystick-panel">
+                        <h2>Drive</h2>
+                        <div id="joystick-container">
+                            <canvas
+                                id="joystick"
+                                width="200"
+                                height="200"
+                            ></canvas>
+                        </div>
+                        <div id="motor-readout">
+                            <span>L: <span id="motor-l">0</span></span>
+                            <span>R: <span id="motor-r">0</span></span>
+                        </div>
+                        <div id="wasd-hint">WASD to drive</div>
+                    </div>
+                </div>
+                <div id="console-area">
+                    <div id="chat-log"></div>
+                    <div id="command-bar">
+                        <select id="cmd-select">
+                            <option value="">Select command...</option>
+                        </select>
+                        <div id="param-fields"></div>
+                        <button id="btn-send" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="/static/app.js"></script>
+    </body>
+</html>
