@@ -164,24 +164,24 @@ namespace tof {
 
             res.end();
 
-            SERIAL_PRINT(F("SEND_TOF_DATA: "));
-            SERIAL_PRINT(dist1.size());
-            SERIAL_PRINT(F(" S1 samples, "));
-            SERIAL_PRINT(dist2.size());
-            SERIAL_PRINTLN(F(" S2 samples"));
+            INFO_PRINT(F("SEND_TOF_DATA: "));
+            INFO_PRINT(dist1.size());
+            INFO_PRINT(F(" S1 samples, "));
+            INFO_PRINT(dist2.size());
+            INFO_PRINTLN(F(" S2 samples"));
         }
 
         void short_mode(BLERequest &req) {
             sensor1.setDistanceModeShort();
             sensor2.setDistanceModeShort();
-            SERIAL_PRINTLN(F("ToF: short mode"));
+            INFO_PRINTLN(F("ToF: short mode"));
             req.new_response().end();
         }
 
         void long_mode(BLERequest &req) {
             sensor1.setDistanceModeLong();
             sensor2.setDistanceModeLong();
-            SERIAL_PRINTLN(F("ToF: long mode"));
+            INFO_PRINTLN(F("ToF: long mode"));
             req.new_response().end();
         }
 
@@ -234,10 +234,10 @@ namespace tof {
 
             res.end();
 
-            SERIAL_PRINT(F("TOF_STATS: S1 n="));
-            SERIAL_PRINT(dist1.size());
-            SERIAL_PRINT(F(", S2 n="));
-            SERIAL_PRINTLN(dist2.size());
+            INFO_PRINT(F("TOF_STATS: S1 n="));
+            INFO_PRINT(dist1.size());
+            INFO_PRINT(F(", S2 n="));
+            INFO_PRINTLN(dist2.size());
         }
 
     } // namespace commands
@@ -254,12 +254,12 @@ namespace tof {
         delay(100);
 
         while (sensor2.begin() != 0) {
-            SERIAL_PRINTLN(F("WARNING: ToF sensor 2 failed to begin..."));
+            INFO_PRINTLN(F("WARNING: ToF sensor 2 failed to begin..."));
             delay(100);
         }
 
         sensor2.setI2CAddress(0x54);
-        SERIAL_PRINTLN(F("ToF sensor 2 online at address 0x54!"));
+        INFO_PRINTLN(F("ToF sensor 2 online at address 0x54!"));
 
         // Bring sensor 1 back up
         delay(100);
@@ -267,11 +267,11 @@ namespace tof {
         delay(100);
 
         while (sensor1.begin() != 0) {
-            SERIAL_PRINTLN(F("WARNING: ToF sensor 1 failed to begin..."));
+            INFO_PRINTLN(F("WARNING: ToF sensor 1 failed to begin..."));
             delay(100);
         }
 
-        SERIAL_PRINTLN(F("ToF sensor 1 online!"));
+        INFO_PRINTLN(F("ToF sensor 1 online!"));
 
         sensor1.setDistanceModeShort();
         sensor2.setDistanceModeShort();

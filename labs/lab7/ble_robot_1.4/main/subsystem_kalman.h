@@ -109,9 +109,9 @@ namespace kalman {
             );
             res.end();
 
-            SERIAL_PRINT(F("SEND_KF_DATA: "));
-            SERIAL_PRINT(log_times.size());
-            SERIAL_PRINTLN(F(" samples"));
+            INFO_PRINT(F("SEND_KF_DATA: "));
+            INFO_PRINT(log_times.size());
+            INFO_PRINTLN(F(" samples"));
         }
 
         void set_params(BLERequest &req) {
@@ -128,16 +128,16 @@ namespace kalman {
             sigma_tof = s3;
             methods::update_matrices();
 
-            SERIAL_PRINT(F("KF params: d="));
-            SERIAL_PRINT(drag);
-            SERIAL_PRINT(F(" m="));
-            SERIAL_PRINT(momentum);
-            SERIAL_PRINT(F(" sigma_pos="));
-            SERIAL_PRINT(sigma_pos);
-            SERIAL_PRINT(F(" sigma_vel="));
-            SERIAL_PRINT(sigma_vel);
-            SERIAL_PRINT(F(" sigma_tof="));
-            SERIAL_PRINTLN(sigma_tof);
+            INFO_PRINT(F("KF params: d="));
+            INFO_PRINT(drag);
+            INFO_PRINT(F(" m="));
+            INFO_PRINT(momentum);
+            INFO_PRINT(F(" sigma_pos="));
+            INFO_PRINT(sigma_pos);
+            INFO_PRINT(F(" sigma_vel="));
+            INFO_PRINT(sigma_vel);
+            INFO_PRINT(F(" sigma_tof="));
+            INFO_PRINTLN(sigma_tof);
             req.new_response().end();
         }
 
@@ -153,7 +153,7 @@ namespace kalman {
             kf.P(0, 0) = 1000;
             kf.P(1, 1) = 1000;
 
-            SERIAL_PRINTLN(F("KF reset"));
+            INFO_PRINTLN(F("KF reset"));
             req.new_response().end();
         }
 

@@ -74,11 +74,10 @@ namespace timer {
             delayMicroseconds(sleep_until - now);
         } else if (sleep_until + MAX_DELAY_US < now) {
             sleep_until = now + PERIOD_US;
-            SERIAL_PRINT(F("Timer overrun (avg "));
-            SERIAL_PRINT(methods::avg_hz(), 1);
-            SERIAL_PRINTLN(F(" Hz)"));
+            ERROR_PRINT(F("Timer overrun (avg "));
+            ERROR_PRINT(methods::avg_hz(), 1);
+            ERROR_PRINTLN(F(" Hz)"));
         }
-
 
         sleep_until += PERIOD_US;
     }

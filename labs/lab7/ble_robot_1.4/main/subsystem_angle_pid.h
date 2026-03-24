@@ -48,10 +48,10 @@ namespace angle_pid {
                 return (int)(sign * abs_v *
                              ((float)out_deadband / in_deadband));
             }
-            int pwm = (int)(sign * (out_deadband +
-                                    (abs_v - in_deadband) *
-                                        (PWM_MAX - out_deadband) /
-                                        (PWM_MAX - in_deadband)));
+            int pwm =
+                (int)(sign * (out_deadband + (abs_v - in_deadband) *
+                                                 (PWM_MAX - out_deadband) /
+                                                 (PWM_MAX - in_deadband)));
             return constrain(pwm, -PWM_MAX, PWM_MAX);
         }
 
@@ -67,7 +67,7 @@ namespace angle_pid {
             if (millis() - start_time >= duration_ms) {
                 active = false;
                 motors::methods::stop();
-                SERIAL_PRINTLN(F("Angle PID complete"));
+                INFO_PRINTLN(F("Angle PID complete"));
                 return;
             }
 
@@ -127,23 +127,23 @@ namespace angle_pid {
             active = true;
             start_time = millis();
 
-            SERIAL_PRINT(F("Angle PID start: sp="));
-            SERIAL_PRINT(setpoint);
-            SERIAL_PRINT(F(" offset="));
-            SERIAL_PRINT(yaw_offset);
-            SERIAL_PRINT(F(" kP="));
-            SERIAL_PRINT(controller.kP);
-            SERIAL_PRINT(F(" kD="));
-            SERIAL_PRINT(controller.kD);
-            SERIAL_PRINT(F(" dur="));
-            SERIAL_PRINTLN(duration_ms);
+            INFO_PRINT(F("Angle PID start: sp="));
+            INFO_PRINT(setpoint);
+            INFO_PRINT(F(" offset="));
+            INFO_PRINT(yaw_offset);
+            INFO_PRINT(F(" kP="));
+            INFO_PRINT(controller.kP);
+            INFO_PRINT(F(" kD="));
+            INFO_PRINT(controller.kD);
+            INFO_PRINT(F(" dur="));
+            INFO_PRINTLN(duration_ms);
             req.new_response().end();
         }
 
         void stop(BLERequest &req) {
             active = false;
             motors::methods::stop();
-            SERIAL_PRINTLN(F("Angle PID stopped"));
+            INFO_PRINTLN(F("Angle PID stopped"));
             req.new_response().end();
         }
 
@@ -151,8 +151,8 @@ namespace angle_pid {
             float sp;
             BLE_CHECK_READ(req, req.read(sp), "setpoint");
             setpoint = sp;
-            SERIAL_PRINT(F("Angle PID setpoint: "));
-            SERIAL_PRINTLN(sp);
+            INFO_PRINT(F("Angle PID setpoint: "));
+            INFO_PRINTLN(sp);
             req.new_response().end();
         }
 
@@ -162,10 +162,10 @@ namespace angle_pid {
             BLE_CHECK_READ(req, req.read(kd), "kd");
             controller.kP = kp;
             controller.kD = kd;
-            SERIAL_PRINT(F("Angle PID gains: kP="));
-            SERIAL_PRINT(kp);
-            SERIAL_PRINT(F(" kD="));
-            SERIAL_PRINTLN(kd);
+            INFO_PRINT(F("Angle PID gains: kP="));
+            INFO_PRINT(kp);
+            INFO_PRINT(F(" kD="));
+            INFO_PRINTLN(kd);
             req.new_response().end();
         }
 
@@ -176,10 +176,10 @@ namespace angle_pid {
             BLE_CHECK_READ(req, req.read(db), "deadband");
             controller.d_filter.set_rc(rc);
             out_deadband = db;
-            SERIAL_PRINT(F("Angle PID params: rc="));
-            SERIAL_PRINT(rc);
-            SERIAL_PRINT(F(" deadband="));
-            SERIAL_PRINTLN(db);
+            INFO_PRINT(F("Angle PID params: rc="));
+            INFO_PRINT(rc);
+            INFO_PRINT(F(" deadband="));
+            INFO_PRINTLN(db);
             req.new_response().end();
         }
 
@@ -216,9 +216,9 @@ namespace angle_pid {
 
             res.end();
 
-            SERIAL_PRINT(F("SEND_ANGLE_PID_DATA: "));
-            SERIAL_PRINT(times.size());
-            SERIAL_PRINTLN(F(" samples"));
+            INFO_PRINT(F("SEND_ANGLE_PID_DATA: "));
+            INFO_PRINT(times.size());
+            INFO_PRINTLN(F(" samples"));
         }
 
     } // namespace commands
@@ -231,21 +231,13 @@ namespace angle_pid {
         controller.integrator_cap = 0;
         controller.integrator_range = 0;
 
-        ble::methods::register_command(
-            ANGLE_PID_START, commands::start
-        );
-        ble::methods::register_command(
-            ANGLE_PID_STOP, commands::stop
-        );
+        ble::methods::register_command(ANGLE_PID_START, commands::start);
+        ble::methods::register_command(ANGLE_PID_STOP, commands::stop);
         ble::methods::register_command(
             ANGLE_PID_SETPOINT, commands::set_setpoint
         );
-        ble::methods::register_command(
-            ANGLE_PID_GAINS, commands::set_gains
-        );
-        ble::methods::register_command(
-            ANGLE_PID_PARAMS, commands::set_params
-        );
+        ble::methods::register_command(ANGLE_PID_GAINS, commands::set_gains);
+        ble::methods::register_command(ANGLE_PID_PARAMS, commands::set_params);
         ble::methods::register_command(
             SEND_ANGLE_PID_DATA, commands::send_data
         );

@@ -68,9 +68,8 @@ namespace ble {
         BLE_UUID_RX_CMD, BLEWriteWithoutResponse, MAX_MSG_SIZE
     );
 
-    BLECharacteristic tx_characteristic(
-        BLE_UUID_TX_DATA, BLERead | BLENotify, MAX_MSG_SIZE
-    );
+    BLECharacteristic
+        tx_characteristic(BLE_UUID_TX_DATA, BLERead | BLENotify, MAX_MSG_SIZE);
 
     bool recording = false;
 
@@ -142,17 +141,17 @@ namespace ble {
             BLEResponse res = req.new_response();
             res.add("PONG");
             res.end();
-            SERIAL_PRINTLN(F("PING -> PONG"));
+            INFO_PRINTLN(F("PING -> PONG"));
         }
 
         void send_two_ints(BLERequest &req) {
             int32_t int_a, int_b;
             BLE_CHECK_READ(req, req.read(int_a), "int_a");
             BLE_CHECK_READ(req, req.read(int_b), "int_b");
-            SERIAL_PRINT(F("Two Integers: "));
-            SERIAL_PRINT(int_a);
-            SERIAL_PRINT(F(", "));
-            SERIAL_PRINTLN(int_b);
+            INFO_PRINT(F("Two Integers: "));
+            INFO_PRINT(int_a);
+            INFO_PRINT(F(", "));
+            INFO_PRINTLN(int_b);
             req.new_response().end();
         }
 
@@ -161,12 +160,12 @@ namespace ble {
             BLE_CHECK_READ(req, req.read(float_a), "float_a");
             BLE_CHECK_READ(req, req.read(float_b), "float_b");
             BLE_CHECK_READ(req, req.read(float_c), "float_c");
-            SERIAL_PRINT(F("Three Floats: "));
-            SERIAL_PRINT(float_a);
-            SERIAL_PRINT(F(", "));
-            SERIAL_PRINT(float_b);
-            SERIAL_PRINT(F(", "));
-            SERIAL_PRINTLN(float_c);
+            INFO_PRINT(F("Three Floats: "));
+            INFO_PRINT(float_a);
+            INFO_PRINT(F(", "));
+            INFO_PRINT(float_b);
+            INFO_PRINT(F(", "));
+            INFO_PRINTLN(float_c);
             req.new_response().end();
         }
 
@@ -184,16 +183,18 @@ namespace ble {
             res.add("Robot Says -> ");
             res.add(char_arr);
             res.end();
-            SERIAL_PRINT(F("Echo: "));
-            SERIAL_PRINTLN(char_arr);
+            INFO_PRINT(F("Echo: "));
+            INFO_PRINTLN(char_arr);
         }
 
         void dance(BLERequest &req) {
-            SERIAL_PRINTLN(F("Look Ma, I'm Dancin'!"));
+            INFO_PRINTLN(F("Look Ma, I'm Dancin'!"));
             req.new_response().end();
         }
 
-        void set_vel(BLERequest &req) { req.new_response().end(); }
+        void set_vel(BLERequest &req) {
+            req.new_response().end();
+        }
 
         void store_time_millis(BLERequest &req) {
             int32_t count;
@@ -219,13 +220,13 @@ namespace ble {
 
         void start_recording(BLERequest &req) {
             recording = true;
-            SERIAL_PRINTLN(F("Recording started"));
+            INFO_PRINTLN(F("Recording started"));
             req.new_response().end();
         }
 
         void stop_recording(BLERequest &req) {
             recording = false;
-            SERIAL_PRINTLN(F("Recording stopped"));
+            INFO_PRINTLN(F("Recording stopped"));
             req.new_response().end();
         }
 
@@ -245,8 +246,8 @@ namespace ble {
 
         BLE.addService(testService);
 
-        SERIAL_PRINT(F("Advertising BLE with MAC: "));
-        SERIAL_PRINTLN(BLE.address());
+        INFO_PRINT(F("Advertising BLE with MAC: "));
+        INFO_PRINTLN(BLE.address());
 
         BLE.advertise();
 

@@ -7,17 +7,8 @@
 #define SERIAL_ENABLED 1
 
 // ERROR_PRINT/LN: Always prints, regardless of SERIAL_ENABLED.
-// Prefixed with "[ERROR] " for visibility.
-#define ERROR_PRINT(...)              \
-    do {                              \
-        Serial.print(F("[ERROR] ")); \
-        Serial.print(__VA_ARGS__);    \
-    } while (0)
-#define ERROR_PRINTLN(...)            \
-    do {                              \
-        Serial.print(F("[ERROR] ")); \
-        Serial.println(__VA_ARGS__);  \
-    } while (0)
+#define ERROR_PRINT(...) Serial.print(__VA_ARGS__)
+#define ERROR_PRINTLN(...) Serial.println(__VA_ARGS__)
 
 // INFO_PRINT/LN: Only prints when SERIAL_ENABLED is 1.
 // Use for debug/status messages that can be disabled.
@@ -30,8 +21,8 @@
 #endif
 
 // Legacy aliases
-#define SERIAL_PRINT(...) INFO_PRINT(__VA_ARGS__)
-#define SERIAL_PRINTLN(...) INFO_PRINTLN(__VA_ARGS__)
+#define INFO_PRINT(...) INFO_PRINT(__VA_ARGS__)
+#define INFO_PRINTLN(...) INFO_PRINTLN(__VA_ARGS__)
 
 namespace serial {
 

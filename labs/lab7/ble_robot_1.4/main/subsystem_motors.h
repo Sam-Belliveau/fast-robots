@@ -97,16 +97,16 @@ namespace motors {
             BLE_CHECK_READ(req, req.read(left), "left");
             BLE_CHECK_READ(req, req.read(right), "right");
             methods::set(left, right);
-            SERIAL_PRINT(F("Motors: L="));
-            SERIAL_PRINT(left);
-            SERIAL_PRINT(F(" R="));
-            SERIAL_PRINTLN(right);
+            INFO_PRINT(F("Motors: L="));
+            INFO_PRINT(left);
+            INFO_PRINT(F(" R="));
+            INFO_PRINTLN(right);
             req.new_response().end();
         }
 
         void motor_stop(BLERequest &req) {
             methods::stop();
-            SERIAL_PRINTLN(F("Motors stopped"));
+            INFO_PRINTLN(F("Motors stopped"));
             req.new_response().end();
         }
 
@@ -119,13 +119,13 @@ namespace motors {
             res.add(cal);
             res.end();
 
-            SERIAL_PRINT(F("Motor2 calibration: "));
-            SERIAL_PRINTLN(cal);
+            INFO_PRINT(F("Motor2 calibration: "));
+            INFO_PRINTLN(cal);
         }
 
         void motor_test(BLERequest &req) {
             methods::stop();
-            SERIAL_PRINTLN(F("Starting motor test..."));
+            INFO_PRINTLN(F("Starting motor test..."));
 
             const int pins[] = {MOTOR2_FWD, MOTOR1_FWD, MOTOR2_REV, MOTOR1_REV};
             const char *names[] = {
@@ -135,8 +135,8 @@ namespace motors {
             for (int i = 0; i < 4; i++) {
                 if (i > 0)
                     delay(1000);
-                SERIAL_PRINT(F("\tTesting "));
-                SERIAL_PRINTLN(names[i]);
+                INFO_PRINT(F("\tTesting "));
+                INFO_PRINTLN(names[i]);
                 for (int k = 0; k <= 255; k++) {
                     analogWrite(pins[i], k);
                     delay(10);
@@ -144,7 +144,7 @@ namespace motors {
                 methods::stop();
             }
 
-            SERIAL_PRINTLN(F("Motor test complete"));
+            INFO_PRINTLN(F("Motor test complete"));
             req.new_response().end();
         }
 

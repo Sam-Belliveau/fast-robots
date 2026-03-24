@@ -26,7 +26,7 @@ namespace imu {
     bool ok = false;
     bool dmp_ok = false;
 
-    float yaw = 0;         // current DMP yaw in degrees
+    float yaw = 0;          // current DMP yaw in degrees
     bool yaw_valid = false; // true when a new DMP reading arrived
 
     CircularBuffer<int, 0x100> times;
@@ -53,21 +53,17 @@ namespace imu {
             myICM.readDMPdataFromFIFO(&data);
 
             if ((myICM.status == ICM_20948_Stat_Ok ||
-                 myICM.status ==
-                     ICM_20948_Stat_FIFOMoreDataAvail) &&
+                 myICM.status == ICM_20948_Stat_FIFOMoreDataAvail) &&
                 (data.header & DMP_header_bitmap_Quat6) > 0) {
 
                 float q1 = (float)data.Quat6.Data.Q1 / 1073741824.0f;
                 float q2 = (float)data.Quat6.Data.Q2 / 1073741824.0f;
                 float q3 = (float)data.Quat6.Data.Q3 / 1073741824.0f;
-                float q0 =
-                    sqrtf(1.0f - (q1 * q1) - (q2 * q2) - (q3 * q3));
+                float q0 = sqrtf(1.0f - (q1 * q1) - (q2 * q2) - (q3 * q3));
 
                 float siny_cosp = 2.0f * (q0 * q3 + q1 * q2);
-                float cosy_cosp =
-                    1.0f - 2.0f * (q2 * q2 + q3 * q3);
-                yaw = atan2f(siny_cosp, cosy_cosp) * 180.0f /
-                      (float)M_PI;
+                float cosy_cosp = 1.0f - 2.0f * (q2 * q2 + q3 * q3);
+                yaw = atan2f(siny_cosp, cosy_cosp) * 180.0f / (float)M_PI;
                 yaw_valid = true;
             } else {
                 yaw_valid = false;
@@ -98,65 +94,64 @@ namespace imu {
             ICM_20948_Status_e st;
 
             st = myICM.initializeDMP();
-            SERIAL_PRINT(F("DMP initializeDMP: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP initializeDMP: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
-            st = myICM.enableDMPSensor(
-                INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR
-            );
-            SERIAL_PRINT(F("DMP enableSensor: "));
-            SERIAL_PRINTLN(st);
+            st =
+                myICM.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR);
+            INFO_PRINT(F("DMP enableSensor: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             st = myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0);
-            SERIAL_PRINT(F("DMP setODR: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP setODR: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             st = myICM.enableFIFO();
-            SERIAL_PRINT(F("DMP enableFIFO: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP enableFIFO: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             st = myICM.enableDMP();
-            SERIAL_PRINT(F("DMP enableDMP: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP enableDMP: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             st = myICM.resetDMP();
-            SERIAL_PRINT(F("DMP resetDMP: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP resetDMP: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             st = myICM.resetFIFO();
-            SERIAL_PRINT(F("DMP resetFIFO: "));
-            SERIAL_PRINTLN(st);
+            INFO_PRINT(F("DMP resetFIFO: "));
+            INFO_PRINTLN(st);
             if (st != ICM_20948_Stat_Ok) {
                 dmp_ok = false;
                 return;
             }
 
             dmp_ok = true;
-            SERIAL_PRINTLN(F("DMP initialized OK"));
+            INFO_PRINTLN(F("DMP initialized OK"));
         }
 
     } // namespace methods
@@ -207,9 +202,9 @@ namespace imu {
 
             res.end();
 
-            SERIAL_PRINT(F("SEND_IMU_DATA: "));
-            SERIAL_PRINT(times.size());
-            SERIAL_PRINTLN(F(" samples"));
+            INFO_PRINT(F("SEND_IMU_DATA: "));
+            INFO_PRINT(times.size());
+            INFO_PRINTLN(F(" samples"));
         }
 
     } // namespace commands
@@ -220,10 +215,10 @@ namespace imu {
         bool initialized = false;
         while (!initialized) {
             myICM.begin(WIRE_PORT, AD0_VAL);
-            SERIAL_PRINT(F("Initialization of the sensor returned: "));
-            SERIAL_PRINTLN(myICM.statusString());
+            INFO_PRINT(F("Initialization of the sensor returned: "));
+            INFO_PRINTLN(myICM.statusString());
             if (myICM.status != ICM_20948_Stat_Ok) {
-                SERIAL_PRINTLN(F("Trying again..."));
+                INFO_PRINTLN(F("Trying again..."));
                 delay(500);
             } else {
                 initialized = true;

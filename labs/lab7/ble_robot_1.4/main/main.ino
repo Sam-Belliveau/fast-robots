@@ -24,16 +24,16 @@ void setup() {
     angle_pid::init();
     kalman::init();
 
-    SERIAL_PRINT(F("Commands registered: "));
-    SERIAL_PRINTLN(ble::num_commands);
+    INFO_PRINT(F("Commands registered: "));
+    INFO_PRINTLN(ble::num_commands);
 }
 
 void loop() {
     BLEDevice central = BLE.central();
 
     if (central) {
-        SERIAL_PRINT(F("Connected to: "));
-        SERIAL_PRINTLN(central.address());
+        INFO_PRINT(F("Connected to: "));
+        INFO_PRINTLN(central.address());
 
         while (central.connected()) {
             imu::periodic();
@@ -47,6 +47,6 @@ void loop() {
         }
 
         motors::methods::stop();
-        SERIAL_PRINTLN(F("Disconnected"));
+        INFO_PRINTLN(F("Disconnected"));
     }
 }

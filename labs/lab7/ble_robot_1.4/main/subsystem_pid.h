@@ -47,10 +47,10 @@ namespace pid {
                 return (int)(sign * abs_v *
                              ((float)out_deadband / in_deadband));
             }
-            int pwm = (int)(sign * (out_deadband +
-                                    (abs_v - in_deadband) *
-                                        (PWM_MAX - out_deadband) /
-                                        (PWM_MAX - in_deadband)));
+            int pwm =
+                (int)(sign * (out_deadband + (abs_v - in_deadband) *
+                                                 (PWM_MAX - out_deadband) /
+                                                 (PWM_MAX - in_deadband)));
             return constrain(pwm, -PWM_MAX, PWM_MAX);
         }
 
@@ -61,7 +61,7 @@ namespace pid {
             if (millis() - start_time >= duration_ms) {
                 active = false;
                 motors::methods::stop();
-                SERIAL_PRINTLN(F("PID complete"));
+                INFO_PRINTLN(F("PID complete"));
                 return;
             }
 
@@ -108,23 +108,23 @@ namespace pid {
             active = true;
             start_time = millis();
 
-            SERIAL_PRINT(F("PID start: sp="));
-            SERIAL_PRINT(setpoint);
-            SERIAL_PRINT(F(" kP="));
-            SERIAL_PRINT(controller.kP);
-            SERIAL_PRINT(F(" kI="));
-            SERIAL_PRINT(controller.kI);
-            SERIAL_PRINT(F(" kD="));
-            SERIAL_PRINT(controller.kD);
-            SERIAL_PRINT(F(" dur="));
-            SERIAL_PRINTLN(duration_ms);
+            INFO_PRINT(F("PID start: sp="));
+            INFO_PRINT(setpoint);
+            INFO_PRINT(F(" kP="));
+            INFO_PRINT(controller.kP);
+            INFO_PRINT(F(" kI="));
+            INFO_PRINT(controller.kI);
+            INFO_PRINT(F(" kD="));
+            INFO_PRINT(controller.kD);
+            INFO_PRINT(F(" dur="));
+            INFO_PRINTLN(duration_ms);
             req.new_response().end();
         }
 
         void stop(BLERequest &req) {
             active = false;
             motors::methods::stop();
-            SERIAL_PRINTLN(F("PID stopped"));
+            INFO_PRINTLN(F("PID stopped"));
             req.new_response().end();
         }
 
@@ -132,8 +132,8 @@ namespace pid {
             float sp;
             BLE_CHECK_READ(req, req.read(sp), "setpoint");
             setpoint = sp;
-            SERIAL_PRINT(F("PID setpoint: "));
-            SERIAL_PRINTLN(sp);
+            INFO_PRINT(F("PID setpoint: "));
+            INFO_PRINTLN(sp);
             req.new_response().end();
         }
 
@@ -145,12 +145,12 @@ namespace pid {
             controller.kP = kp;
             controller.kI = ki;
             controller.kD = kd;
-            SERIAL_PRINT(F("PID gains: "));
-            SERIAL_PRINT(kp);
-            SERIAL_PRINT(F(" "));
-            SERIAL_PRINT(ki);
-            SERIAL_PRINT(F(" "));
-            SERIAL_PRINTLN(kd);
+            INFO_PRINT(F("PID gains: "));
+            INFO_PRINT(kp);
+            INFO_PRINT(F(" "));
+            INFO_PRINT(ki);
+            INFO_PRINT(F(" "));
+            INFO_PRINTLN(kd);
             req.new_response().end();
         }
 
@@ -165,14 +165,14 @@ namespace pid {
             controller.integrator_range = range;
             controller.d_filter.set_rc(rc);
             out_deadband = db;
-            SERIAL_PRINT(F("PID params: cap="));
-            SERIAL_PRINT(cap);
-            SERIAL_PRINT(F(" range="));
-            SERIAL_PRINT(range);
-            SERIAL_PRINT(F(" rc="));
-            SERIAL_PRINT(rc);
-            SERIAL_PRINT(F(" deadband="));
-            SERIAL_PRINTLN(db);
+            INFO_PRINT(F("PID params: cap="));
+            INFO_PRINT(cap);
+            INFO_PRINT(F(" range="));
+            INFO_PRINT(range);
+            INFO_PRINT(F(" rc="));
+            INFO_PRINT(rc);
+            INFO_PRINT(F(" deadband="));
+            INFO_PRINTLN(db);
             req.new_response().end();
         }
 
@@ -212,9 +212,9 @@ namespace pid {
 
             res.end();
 
-            SERIAL_PRINT(F("SEND_PID_DATA: "));
-            SERIAL_PRINT(times.size());
-            SERIAL_PRINTLN(F(" samples"));
+            INFO_PRINT(F("SEND_PID_DATA: "));
+            INFO_PRINT(times.size());
+            INFO_PRINTLN(F(" samples"));
         }
 
     } // namespace commands
