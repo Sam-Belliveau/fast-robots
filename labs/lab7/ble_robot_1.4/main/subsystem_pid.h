@@ -23,9 +23,6 @@ namespace pid {
     unsigned long duration_ms = 3000;
     float setpoint = 304; // default distance in mm
 
-    const int in_deadband = 16;
-    int out_deadband = 120;
-
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> measurement;
     CircularBuffer<int, 0x100> error_buf;
@@ -41,17 +38,7 @@ namespace pid {
     namespace methods {
 
         static int to_pwm(float output) {
-            float abs_v = fabs(output);
-            float sign = output > 0 ? 1.0 : -1.0;
-            if (abs_v <= in_deadband) {
-                return (int)(sign * abs_v *
-                             ((float)out_deadband / in_deadband));
-            }
-            int pwm =
-                (int)(sign * (out_deadband + (abs_v - in_deadband) *
-                                                 (PWM_MAX - out_deadband) /
-                                                 (PWM_MAX - in_deadband)));
-            return constrain(pwm, -PWM_MAX, PWM_MAX);
+            return constrain((int)output, -PWM_MAX, PWM_MAX);
         }
 
         void update() {
@@ -156,23 +143,18 @@ namespace pid {
 
         void set_params(BLERequest &req) {
             float cap, range, rc;
-            int32_t db;
             BLE_CHECK_READ(req, req.read(cap), "cap");
             BLE_CHECK_READ(req, req.read(range), "range");
             BLE_CHECK_READ(req, req.read(rc), "rc");
-            BLE_CHECK_READ(req, req.read(db), "deadband");
             controller.integrator_cap = cap;
             controller.integrator_range = range;
             controller.d_filter.set_rc(rc);
-            out_deadband = db;
             INFO_PRINT(F("PID params: cap="));
             INFO_PRINT(cap);
             INFO_PRINT(F(" range="));
             INFO_PRINT(range);
             INFO_PRINT(F(" rc="));
-            INFO_PRINT(rc);
-            INFO_PRINT(F(" deadband="));
-            INFO_PRINTLN(db);
+            INFO_PRINTLN(rc);
             req.new_response().end();
         }
 

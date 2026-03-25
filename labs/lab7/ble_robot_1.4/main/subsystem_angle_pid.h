@@ -24,9 +24,6 @@ namespace angle_pid {
     float setpoint = 90;  // relative target angle in degrees
     float yaw_offset = 0; // yaw at start, used to make setpoint relative
 
-    const int in_deadband = 16;
-    int out_deadband = 80;
-
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> angle_buf;
     CircularBuffer<int, 0x100> error_buf;
@@ -40,19 +37,8 @@ namespace angle_pid {
 
     namespace methods {
 
-        // Convert PD output to PWM with deadband compensation
         static int to_pwm(float output) {
-            float abs_v = fabs(output);
-            float sign = output > 0 ? 1.0 : -1.0;
-            if (abs_v <= in_deadband) {
-                return (int)(sign * abs_v *
-                             ((float)out_deadband / in_deadband));
-            }
-            int pwm =
-                (int)(sign * (out_deadband + (abs_v - in_deadband) *
-                                                 (PWM_MAX - out_deadband) /
-                                                 (PWM_MAX - in_deadband)));
-            return constrain(pwm, -PWM_MAX, PWM_MAX);
+            return constrain((int)output, -PWM_MAX, PWM_MAX);
         }
 
         // Wrap angle difference to [-180, 180]
@@ -171,15 +157,10 @@ namespace angle_pid {
 
         void set_params(BLERequest &req) {
             float rc;
-            int32_t db;
             BLE_CHECK_READ(req, req.read(rc), "rc");
-            BLE_CHECK_READ(req, req.read(db), "deadband");
             controller.d_filter.set_rc(rc);
-            out_deadband = db;
             INFO_PRINT(F("Angle PID params: rc="));
-            INFO_PRINT(rc);
-            INFO_PRINT(F(" deadband="));
-            INFO_PRINTLN(db);
+            INFO_PRINTLN(rc);
             req.new_response().end();
         }
 

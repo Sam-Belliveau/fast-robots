@@ -20,10 +20,6 @@
 #define INFO_PRINTLN(...) ((void)0)
 #endif
 
-// Legacy aliases
-#define INFO_PRINT(...) INFO_PRINT(__VA_ARGS__)
-#define INFO_PRINTLN(...) INFO_PRINTLN(__VA_ARGS__)
-
 namespace serial {
 
     void init() {

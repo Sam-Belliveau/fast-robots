@@ -6,6 +6,7 @@
 #include "subsystem_serial.h"
 #include "subsystem_timer.h"
 #include "subsystem_ble.h"
+#include "lib_DeSticker.h"
 
 #define MOTOR1_FWD A1
 #define MOTOR1_REV A0
@@ -30,7 +31,10 @@ namespace motors {
     constexpr float motor_alpha = timer::methods::alpha(motor_rc);
 
     unsigned long last_set = 0;
-    const unsigned long watchdog_timeout_us = 500000; // 0.1 seconds
+    const unsigned long watchdog_timeout_us = 2500000; // 2.5 seconds
+
+    DeSticker desticker_left(120, 160);
+    DeSticker desticker_right(80, 120);
 
     // Methods
 
@@ -83,7 +87,9 @@ namespace motors {
             current_left += (target_left - current_left) * motor_alpha;
             current_right += (target_right - current_right) * motor_alpha;
 
-            set_pwm((int)(current_left), (int)(current_right * cal));
+            int left_out = desticker_left.update((int)(current_left));
+            int right_out = desticker_right.update((int)(current_right));
+            set_pwm(left_out, right_out);
         }
 
     } // namespace methods
@@ -127,10 +133,7 @@ namespace motors {
             methods::stop();
             INFO_PRINTLN(F("Starting motor test..."));
 
-            const int pins[] = {MOTOR2_FWD, MOTOR1_FWD, MOTOR2_REV, MOTOR1_REV};
-            const char *names[] = {
-                "MOTOR2_FWD", "MOTOR1_FWD", "MOTOR2_REV", "MOTOR1_REV"
-            };
+            const char *names[] = {"L_FWD", "R_FWD", "L_REV", "R_REV"};
 
             for (int i = 0; i < 4; i++) {
                 if (i > 0)
@@ -138,7 +141,9 @@ namespace motors {
                 INFO_PRINT(F("\tTesting "));
                 INFO_PRINTLN(names[i]);
                 for (int k = 0; k <= 255; k++) {
-                    analogWrite(pins[i], k);
+                    int left = (i == 0) ? k : (i == 2) ? -k : 0;
+                    int right = (i == 1) ? k : (i == 3) ? -k : 0;
+                    methods::set_pwm(left, right);
                     delay(10);
                 }
                 methods::stop();
