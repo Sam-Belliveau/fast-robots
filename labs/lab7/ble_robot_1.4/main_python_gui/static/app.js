@@ -78,6 +78,8 @@ function populateCommandDropdown(commands) {
             category = "Kalman";
         else if (name.startsWith("AnglePID") || name === "SendAnglePIDData")
             category = "Angle PD";
+        else if (name === "StepResponse" || name === "SendStepData")
+            category = "Step Response";
         else if (
             ["StartRecording", "StopRecording", "StoreTimeMillis",
              "SendTimeMillis", "GetTimeMillis"].includes(name)
@@ -91,7 +93,7 @@ function populateCommandDropdown(commands) {
 
     select.innerHTML = '<option value="">Select command...</option>';
 
-    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID", "Angle PD", "Kalman" ];
+    const order = [ "Core", "Recording", "IMU", "ToF", "Motors", "PID", "Angle PD", "Kalman", "Step Response" ];
     order.forEach((cat) => {
         if (!groups[cat]) return;
         const optgroup = document.createElement("optgroup");
@@ -569,6 +571,32 @@ document.getElementById(
 document.getElementById(
     "kf-data"
 ).addEventListener("click", () => { wsSend("SendKFData", {}); });
+
+// ============================================================
+// Step Response Dashboard
+// ============================================================
+
+let stepAutoFetchTimer = null;
+
+document.getElementById("step-start").addEventListener("click", () => {
+    const dur = document.querySelector(
+        '#step-panel label[data-step="duration"] input'
+    ).value;
+    const pwm = document.querySelector(
+        '#step-panel label[data-step="pwm"] input'
+    ).value;
+    wsSend("StepResponse", { duration_ms: dur, pwm: pwm });
+
+    if (stepAutoFetchTimer) clearTimeout(stepAutoFetchTimer);
+    stepAutoFetchTimer = setTimeout(() => {
+        wsSend("SendStepData", {});
+        stepAutoFetchTimer = null;
+    }, Number(dur) + 500);
+});
+
+document.getElementById(
+    "step-data"
+).addEventListener("click", () => { wsSend("SendStepData", {}); });
 
 // ============================================================
 // Joystick Dashboard

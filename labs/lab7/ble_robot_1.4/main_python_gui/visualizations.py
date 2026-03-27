@@ -195,6 +195,42 @@ def _render_tof(samples: list) -> str:
     return "\n".join(parts)
 
 
+@register("SendStepData")
+def _render_step(samples: list) -> str:
+    if not samples:
+        return "<em>No step data</em>"
+    times = [s.time for s in samples]
+    t0 = times[0]
+    t_sec = [(t - t0) / 1e6 for t in times]
+
+    dists = [s.dist for s in samples]
+    motors = [s.motor for s in samples]
+
+    fig, (ax_dist, ax_vel, ax_motor) = plt.subplots(
+        3, 1, figsize=(8, 8), sharex=True
+    )
+
+    ax_dist.plot(t_sec, dists)
+    ax_dist.set_ylabel("Distance (mm)")
+
+    # Velocity from finite difference
+    if len(t_sec) >= 2:
+        dt = np.diff(t_sec)
+        dd = np.diff(dists)
+        vel = np.where(dt > 0, dd / dt, 0)
+        t_vel = [(t_sec[i] + t_sec[i + 1]) / 2 for i in range(len(vel))]
+        ax_vel.plot(t_vel, vel)
+    ax_vel.axhline(0, color="gray", linewidth=0.5)
+    ax_vel.set_ylabel("Velocity (mm/s)")
+
+    ax_motor.plot(t_sec, motors, color="orange")
+    ax_motor.set_ylabel("Motor PWM")
+    ax_motor.set_xlabel("Time (s)")
+
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
 @register("SendAnglePIDData")
 def _render_angle_pid(samples: list) -> str:
     if not samples:

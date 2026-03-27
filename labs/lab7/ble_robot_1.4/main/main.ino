@@ -5,8 +5,9 @@
 #include "subsystem_imu.h"
 #include "subsystem_tof.h"
 #include "subsystem_motors.h"
-#include "subsystem_pid.h"
 #include "subsystem_kalman.h"
+#include "subsystem_pid.h"
+#include "subsystem_step.h"
 #include "subsystem_angle_pid.h"
 
 void setup() {
@@ -20,9 +21,10 @@ void setup() {
     imu::init();
     tof::init();
     motors::init();
-    pid::init();
-    angle_pid::init();
     kalman::init();
+    pid::init();
+    step::init();
+    angle_pid::init();
 
     INFO_PRINT(F("Commands registered: "));
     INFO_PRINTLN(ble::num_commands);
@@ -39,8 +41,9 @@ void loop() {
             imu::periodic();
             tof::periodic();
             motors::periodic();
-            pid::periodic();
             kalman::periodic();
+            pid::periodic();
+            step::periodic();
             angle_pid::periodic();
             ble::periodic();
             timer::periodic();

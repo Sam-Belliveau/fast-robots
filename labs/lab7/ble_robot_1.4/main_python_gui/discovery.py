@@ -42,6 +42,8 @@ from main_python.commands import (
     AnglePIDGains,
     AnglePIDParams,
     SendAnglePIDData,
+    StepResponse,
+    SendStepData,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -81,6 +83,8 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     AnglePIDGains,
     AnglePIDParams,
     SendAnglePIDData,
+    StepResponse,
+    SendStepData,
 ]
 
 

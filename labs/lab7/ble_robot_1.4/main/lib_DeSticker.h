@@ -13,10 +13,11 @@ class DeSticker {
         int thresh_low,
         int thresh_high,
         int kick_pwm = 192,
-        unsigned long pulse_us = 31250
+        unsigned long pulse_us = 40000,
+        unsigned long pulse_ext_us = 10000
     )
         : thresh_low(thresh_low), thresh_high(thresh_high), kick_pwm(kick_pwm),
-          pulse_us(pulse_us) {}
+          pulse_us(pulse_us), pulse_ext_us(pulse_ext_us) {}
 
     int update(int pwm) {
         int mag = abs(pwm);
@@ -35,7 +36,7 @@ class DeSticker {
         }
 
         int pdm_out = (pwm > 0) ? kick_pwm : (pwm < 0) ? -kick_pwm : 0;
-        pdm_out = (accumulator <= pulse_us) ? pdm_out : 0;
+        pdm_out = (accumulator <= pulse_us + pulse_ext_us) ? pdm_out : 0;
 
         return pdm_mode ? pdm_out : pwm;
     }
@@ -49,4 +50,5 @@ class DeSticker {
     int kick_pwm;
 
     unsigned long pulse_us;
+    unsigned long pulse_ext_us;
 };

@@ -8,6 +8,7 @@
 #include "subsystem_ble.h"
 #include "subsystem_tof.h"
 #include "subsystem_motors.h"
+#include "subsystem_kalman.h"
 #include "lib_PID.h"
 #include "lib_CircularBuffer.h"
 #include "lib_Zip.h"
@@ -22,6 +23,8 @@ namespace pid {
     unsigned long start_time = 0;
     unsigned long duration_ms = 3000;
     float setpoint = 304; // default distance in mm
+
+    bool use_kf = true; // use Kalman filter distance
 
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> measurement;
@@ -52,16 +55,20 @@ namespace pid {
                 return;
             }
 
-            int distance = tof::methods::current1();
-            if (distance < 0)
-                return;
+            // Choose distance source
+            float distance;
+            if (use_kf) {
+                distance = kalman::methods::distance();
+            } else {
+                distance = tof::methods::current1();
+            }
 
-            float output = -controller.compute((float)distance, setpoint);
+            float output = -controller.compute(distance, setpoint);
             int pwm = to_pwm(output);
             motors::methods::set(pwm, pwm);
 
             times.push((int)(timer::methods::time_us()));
-            measurement.push(distance);
+            measurement.push((int)distance);
             error_buf.push((int)(setpoint - distance));
             motor_out.push(pwm);
             motor_left.push((int)(motors::current_left));

@@ -54,6 +54,8 @@ enum CommandTypes {
     ANGLE_PID_GAINS = 33,
     ANGLE_PID_PARAMS = 34,
     SEND_ANGLE_PID_DATA = 35,
+    STEP_RESPONSE = 36,
+    SEND_STEP_DATA = 37,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

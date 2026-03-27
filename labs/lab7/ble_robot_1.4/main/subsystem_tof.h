@@ -42,6 +42,21 @@ namespace tof {
 
     namespace methods {
 
+        // Velocity from finite difference (mm/s).
+        // Negative = approaching sensor. Returns 0 if insufficient data.
+        static float velocity(
+            const CircularBuffer<int, 0x10> &times,
+            const CircularBuffer<int, 0x10> &dists
+        ) {
+            if (times.size() < 2)
+                return 0.0f;
+            int dt_us = times[0] - times[1];
+            if (dt_us <= 0)
+                return 0.0f;
+            return (float)(dists[0] - dists[1]) /
+                   ((float)dt_us * 1e-6f);
+        }
+
         static int extrapolate(
             const CircularBuffer<int, 0x10> &times,
             const CircularBuffer<int, 0x10> &dists
@@ -52,6 +67,7 @@ namespace tof {
             if (n < 2)
                 return dists[0];
 
+            float vel = velocity(times, dists);
             if (n >= 3) {
                 int dir_old = dists[1] - dists[2];
                 int dir_new = dists[0] - dists[1];
@@ -60,16 +76,15 @@ namespace tof {
                     return dists[0];
             }
 
-            int dt = times[0] - times[1];
-            if (dt <= 0)
+            if (vel == 0.0f)
                 return dists[0];
 
             int elapsed = (int)timer::methods::time_us() - times[0];
             if (elapsed > 500000)
                 return dists[0];
 
-            float slope = (float)(dists[0] - dists[1]) / (float)dt;
-            int extrapolated = dists[0] + (int)(slope * (float)elapsed);
+            int extrapolated =
+                dists[0] + (int)(vel * (float)elapsed * 1e-6f);
             return extrapolated > 0 ? extrapolated : 0;
         }
 
@@ -78,6 +93,33 @@ namespace tof {
         }
         int current2() {
             return extrapolate(times2, dist2);
+        }
+        float velocity1() {
+            return velocity(times1, dist1);
+        }
+        float velocity2() {
+            return velocity(times2, dist2);
+        }
+
+        // Time until distance reaches zero at current velocity (ms).
+        // Returns -1 if not approaching (velocity >= 0) or no data.
+        static float time_to_crash(
+            const CircularBuffer<int, 0x10> &times,
+            const CircularBuffer<int, 0x10> &dists
+        ) {
+            float vel = velocity(times, dists);
+            if (vel >= 0.0f)
+                return -1.0f;
+            int dist = extrapolate(times, dists);
+            if (dist <= 0)
+                return 0.0f;
+            return (float)dist / (-vel) * 1000.0f;
+        }
+        float time_to_crash1() {
+            return time_to_crash(times1, dist1);
+        }
+        float time_to_crash2() {
+            return time_to_crash(times2, dist2);
         }
 
         int update(State *state, SFEVL53L1X *sensor) {
