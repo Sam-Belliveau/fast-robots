@@ -29,8 +29,8 @@ enum CommandTypes {
     SEND_TIME_MILLIS = 8,
     SEND_IMU_DATA = 9,
     SEND_TOF_DATA = 10,
-    TOF_SHORT = 11,
-    TOF_LONG = 12,
+    TOF_MODE = 11,
+    TOF_LONG = 12, // unused
     TOF_STATS = 13,
     START_RECORDING = 14,
     STOP_RECORDING = 15,
@@ -56,6 +56,8 @@ enum CommandTypes {
     SEND_ANGLE_PID_DATA = 35,
     STEP_RESPONSE = 36,
     SEND_STEP_DATA = 37,
+    GET_AVG_HZ = 38,
+    TOF_AUTO = 39, // unused
 };
 
 typedef void (*CommandHandler)(BLERequest &);
@@ -138,6 +140,15 @@ namespace ble {
     // Commands
 
     namespace commands {
+
+        void get_avg_hz(BLERequest &req) {
+            float hz = timer::methods::avg_hz();
+            BLEResponse res = req.new_response();
+            res.add(hz);
+            res.end();
+            INFO_PRINT(F("Avg Hz: "));
+            INFO_PRINTLN(hz);
+        }
 
         void ping(BLERequest &req) {
             BLEResponse res = req.new_response();
@@ -269,6 +280,7 @@ namespace ble {
         methods::register_command(SEND_TIME_MILLIS, commands::send_time_millis);
         methods::register_command(START_RECORDING, commands::start_recording);
         methods::register_command(STOP_RECORDING, commands::stop_recording);
+        methods::register_command(GET_AVG_HZ, commands::get_avg_hz);
     }
 
     // Periodic

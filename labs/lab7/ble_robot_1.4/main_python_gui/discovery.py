@@ -19,8 +19,7 @@ from main_python.commands import (
     StopRecording,
     SendIMUData,
     SendToFData,
-    ToFShort,
-    ToFLong,
+    ToFMode,
     ToFStats,
     MotorCmd,
     MotorStop,
@@ -44,6 +43,7 @@ from main_python.commands import (
     SendAnglePIDData,
     StepResponse,
     SendStepData,
+    GetAvgHz,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -60,8 +60,7 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     StopRecording,
     SendIMUData,
     SendToFData,
-    ToFShort,
-    ToFLong,
+    ToFMode,
     ToFStats,
     MotorCmd,
     MotorStop,
@@ -85,6 +84,7 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     SendAnglePIDData,
     StepResponse,
     SendStepData,
+    GetAvgHz,
 ]
 
 

@@ -33,10 +33,15 @@ namespace tof {
     CircularBuffer<int, 0x100> plot_raw2;
     CircularBuffer<int, 0x100> plot_extrap2;
 
-    enum State {
-        RESET = 0,
-        RANGING = 1,
-    };
+    enum Mode { SHORT = 0, LONG = 1 };
+    Mode mode1 = SHORT;
+    Mode mode2 = SHORT;
+
+    static constexpr int AUTO_SWITCH_UP = 1200;
+    static constexpr int AUTO_SWITCH_DOWN = 900;
+
+    static constexpr int MAX_SHORT_DISTANCE = 2000;
+    static constexpr int MAX_LONG_DISTANCE = 4000;
 
     // Methods
 
@@ -53,8 +58,7 @@ namespace tof {
             int dt_us = times[0] - times[1];
             if (dt_us <= 0)
                 return 0.0f;
-            return (float)(dists[0] - dists[1]) /
-                   ((float)dt_us * 1e-6f);
+            return (float)(dists[0] - dists[1]) / ((float)dt_us * 1e-6f);
         }
 
         static int extrapolate(
@@ -83,8 +87,7 @@ namespace tof {
             if (elapsed > 500000)
                 return dists[0];
 
-            int extrapolated =
-                dists[0] + (int)(vel * (float)elapsed * 1e-6f);
+            int extrapolated = dists[0] + (int)(vel * (float)elapsed * 1e-6f);
             return extrapolated > 0 ? extrapolated : 0;
         }
 
@@ -122,42 +125,51 @@ namespace tof {
             return time_to_crash(times2, dist2);
         }
 
-        int update(State *state, SFEVL53L1X *sensor) {
-            int distance = -1;
-            switch (*state) {
-            case RESET:
-                sensor->startRanging();
-                *state = RANGING;
-                break;
+        int update(SFEVL53L1X *sensor, Mode *sensor_mode) {
+            if (!sensor->checkForDataReady())
+                return -1;
 
-            case RANGING:
-                if (sensor->checkForDataReady()) {
-                    distance = sensor->getDistance();
-                    sensor->clearInterrupt();
-                    sensor->stopRanging();
-                    *state = RESET;
-                } else {
-                    *state = RANGING;
+            int distance = sensor->getDistance();
+            sensor->clearInterrupt();
+
+            if (distance <= 0) {
+                switch (*sensor_mode) {
+                case SHORT:
+                    distance = MAX_SHORT_DISTANCE;
+                    break;
+                case LONG:
+                    distance = MAX_LONG_DISTANCE;
+                    break;
+                default:
+                    break;
                 }
-                break;
+            }
+
+            if (AUTO_SWITCH_UP < distance && *sensor_mode != LONG) {
+                sensor->stopRanging();
+                sensor->setDistanceModeLong();
+                *sensor_mode = LONG;
+                sensor->startRanging();
+            } else if (distance < AUTO_SWITCH_DOWN && *sensor_mode != SHORT) {
+                sensor->stopRanging();
+                sensor->setDistanceModeShort();
+                *sensor_mode = SHORT;
+                sensor->startRanging();
             }
 
             return distance;
         }
 
         void read() {
-            static State state1 = RESET;
-            static State state2 = RESET;
-
             const int time = timer::methods::time_us();
             int distance = -1;
 
-            if (0 <= (distance = update(&state1, &sensor1))) {
+            if (0 <= (distance = update(&sensor1, &mode1))) {
                 times1.push(time);
                 dist1.push(distance);
             }
 
-            if (0 <= (distance = update(&state2, &sensor2))) {
+            if (0 <= (distance = update(&sensor2, &mode2))) {
                 times2.push(time);
                 dist2.push(distance);
             }
@@ -213,18 +225,16 @@ namespace tof {
             INFO_PRINTLN(F(" S2 samples"));
         }
 
-        void short_mode(BLERequest &req) {
-            sensor1.setDistanceModeShort();
-            sensor2.setDistanceModeShort();
-            INFO_PRINTLN(F("ToF: short mode"));
-            req.new_response().end();
-        }
-
-        void long_mode(BLERequest &req) {
-            sensor1.setDistanceModeLong();
-            sensor2.setDistanceModeLong();
-            INFO_PRINTLN(F("ToF: long mode"));
-            req.new_response().end();
+        void get_mode(BLERequest &req) {
+            static const char *names[] = {"SHORT", "LONG"};
+            BLEResponse res = req.new_response();
+            res.add((int32_t)mode1);
+            res.add((int32_t)mode2);
+            res.end();
+            INFO_PRINT(F("ToF mode: S1="));
+            INFO_PRINT(names[mode1]);
+            INFO_PRINT(F(" S2="));
+            INFO_PRINTLN(names[mode2]);
         }
 
         void stats(BLERequest &req) {
@@ -317,10 +327,11 @@ namespace tof {
 
         sensor1.setDistanceModeShort();
         sensor2.setDistanceModeShort();
+        sensor1.startRanging();
+        sensor2.startRanging();
 
         ble::methods::register_command(SEND_TOF_DATA, commands::send_data);
-        ble::methods::register_command(TOF_SHORT, commands::short_mode);
-        ble::methods::register_command(TOF_LONG, commands::long_mode);
+        ble::methods::register_command(TOF_MODE, commands::get_mode);
         ble::methods::register_command(TOF_STATS, commands::stats);
     }
 

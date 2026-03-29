@@ -7,8 +7,10 @@
 
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
+#include "subsystem_imu.h"
 #include "subsystem_tof.h"
 #include "subsystem_motors.h"
+#include "lib_PID.h"
 #include "lib_CircularBuffer.h"
 #include "lib_Zip.h"
 
@@ -20,8 +22,13 @@ namespace step {
     unsigned long start_time = 0;
     unsigned long duration_ms = 3000;
     int pwm = 0;
-    float min_distance = 150;    // emergency stop distance (mm)
-    float min_ttc_ms = 500;      // emergency stop time-to-crash (ms)
+    float min_distance = 100; // emergency stop distance (mm)
+    float min_ttc_ms = 200;   // emergency stop time-to-crash (ms)
+    int last_tof_time = -1;   // timestamp of last logged ToF reading
+
+    // Yaw PID for driving straight
+    PID yaw_controller;
+    float yaw_offset = 0;
 
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> distances;
@@ -30,6 +37,10 @@ namespace step {
     // Methods
 
     namespace methods {
+
+        static float wrap_angle(float angle) {
+            return angle - 360.0f * roundf(angle / 360.0f);
+        }
 
         void update() {
             if (!active)
@@ -58,10 +69,23 @@ namespace step {
                 return;
             }
 
-            motors::methods::set(pwm, pwm);
+            // Yaw correction for driving straight
+            float rel_angle = wrap_angle(imu::yaw - yaw_offset);
+            int corr = constrain(
+                (int)yaw_controller.compute(rel_angle, 0), -PWM_MAX, PWM_MAX
+            );
+            motors::methods::set(pwm - corr, pwm + corr);
 
-            times.push((int)timer::methods::time_us());
-            distances.push(dist);
+            // Only log when a new raw ToF reading arrives
+            if (tof::times1.size() == 0)
+                return;
+            int cur_tof_time = tof::times1[0];
+            if (cur_tof_time == last_tof_time)
+                return;
+            last_tof_time = cur_tof_time;
+
+            times.push(cur_tof_time);
+            distances.push(tof::dist1[0]);
             motor_out.push(pwm);
         }
 
@@ -78,9 +102,17 @@ namespace step {
             duration_ms = (unsigned long)dur;
             pwm = (int)pwm_val;
 
+            // Reset yaw correction
+            yaw_controller.reset();
+            imu::myICM.resetFIFO();
+            delay(20);
+            imu::methods::read_dmp();
+            yaw_offset = imu::yaw;
+
             times.clear();
             distances.clear();
             motor_out.clear();
+            last_tof_time = -1;
             active = true;
             start_time = millis();
 
@@ -116,12 +148,15 @@ namespace step {
     // Init
 
     void init() {
-        ble::methods::register_command(
-            STEP_RESPONSE, commands::start
-        );
-        ble::methods::register_command(
-            SEND_STEP_DATA, commands::send_data
-        );
+        // Yaw PD defaults for driving straight
+        yaw_controller.kP = 3.0;
+        yaw_controller.kI = 0;
+        yaw_controller.kD = 0.5;
+        yaw_controller.integrator_cap = 0;
+        yaw_controller.integrator_range = 0;
+
+        ble::methods::register_command(STEP_RESPONSE, commands::start);
+        ble::methods::register_command(SEND_STEP_DATA, commands::send_data);
     }
 
     // Periodic

@@ -29,20 +29,17 @@ class SendToFData(BLECommand[list[ToFSample]]):
         return _chunk(fields, 4, ToFSample)
 
 
-@dataclass
-class ToFShort(BLECommand[None]):
-    cmd_name = "TOF_SHORT"
-    def write_params(self, w: PacketWriter) -> None: pass
-    def parse_response(self, fields: list[Any]) -> None:
-        return None
+class ToFModeSample(NamedTuple):
+    mode_s1: int  # 0=SHORT, 1=LONG
+    mode_s2: int
 
 
 @dataclass
-class ToFLong(BLECommand[None]):
-    cmd_name = "TOF_LONG"
+class ToFMode(BLECommand[ToFModeSample]):
+    cmd_name = "TOF_MODE"
     def write_params(self, w: PacketWriter) -> None: pass
-    def parse_response(self, fields: list[Any]) -> None:
-        return None
+    def parse_response(self, fields: list[Any]) -> ToFModeSample:
+        return ToFModeSample(fields[0], fields[1])
 
 
 @dataclass

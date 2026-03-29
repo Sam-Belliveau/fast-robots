@@ -11,7 +11,7 @@ namespace timer {
 
     // Variables
 
-    constexpr float FREQ_HZ = 64.0f;
+    constexpr float FREQ_HZ = 100.0f;
     constexpr float PERIOD_S = 1.0f / FREQ_HZ;
     constexpr unsigned long PERIOD_US = (unsigned long)(PERIOD_S * 1e6);
     constexpr unsigned long MAX_DELAY_US = 1000000; // 1 second

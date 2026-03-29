@@ -46,17 +46,18 @@ from .core import (
     StartRecording as StartRecording,
     StopRecording as StopRecording,
     TimeSample as TimeSample,
+    GetAvgHz as GetAvgHz,
 )
 from .imu import (
     SendIMUData as SendIMUData,
     IMUSample as IMUSample,
 )
 from .tof import (
-    SendToFData as SendToFData, 
-    ToFShort as ToFShort, 
-    ToFLong as ToFLong, 
-    ToFStats as ToFStats, 
-    ToFSample as ToFSample, 
+    SendToFData as SendToFData,
+    ToFMode as ToFMode,
+    ToFStats as ToFStats,
+    ToFSample as ToFSample,
+    ToFModeSample as ToFModeSample,
     ToFStatsSample as ToFStatsSample,
 )
 from .motors import (

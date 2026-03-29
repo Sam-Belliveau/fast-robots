@@ -29,7 +29,13 @@ class PID {
 
     // Compute PID output given a measurement.
     // Uses timer::PERIOD_S as the fixed dt.
-    float compute(float measurement, float setpoint = 0) {
+    // If velocity is provided (not NAN), it is used directly for the
+    // derivative term instead of computing it from successive measurements.
+    float compute(
+        float measurement,    //
+        float setpoint = 0,   //
+        float velocity = NAN  //
+    ) {
         constexpr float dt = timer::PERIOD_S;
 
         float error = setpoint - measurement;
@@ -48,9 +54,11 @@ class PID {
 
         i_out = kI * integral;
 
-        // Derivative on measurement (skip first call to avoid spike from
-        // uninitialized prev_measurement)
-        if (first) {
+        // Derivative: use provided velocity or compute from measurement
+        if (!isnan(velocity)) {
+            d_out = kD * d_filter.filter(-velocity);
+            first = false;
+        } else if (first) {
             d_out = 0;
             d_filter.reset();
             d_filter.filter(0);

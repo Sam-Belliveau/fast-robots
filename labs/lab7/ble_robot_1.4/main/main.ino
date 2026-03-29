@@ -6,9 +6,9 @@
 #include "subsystem_tof.h"
 #include "subsystem_motors.h"
 #include "subsystem_kalman.h"
+#include "subsystem_angle_pid.h"
 #include "subsystem_pid.h"
 #include "subsystem_step.h"
-#include "subsystem_angle_pid.h"
 
 void setup() {
     serial::init();

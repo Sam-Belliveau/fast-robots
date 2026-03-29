@@ -19,26 +19,27 @@ namespace kalman {
     KalmanFilter<2> kf;
 
     // Dynamics parameters (from step response)
-    float drag = 1.0f;       // d: drag coefficient (1/s)
-    float momentum = 200.0f; // m: momentum term (mm/s per PWM unit)
+    float drag = 0.8095f;     // d: drag coefficient (1/s)
+    float momentum = 11.8318f; // m: momentum term (mm/s² per PWM unit)
 
     // Discretized matrices (recomputed when params change)
     BLA::Matrix<2, 2> Ad;
     BLA::Matrix<2, 1> Bd;
 
-    // Measurement matrix: ToF measures negative distance
-    BLA::Matrix<1, 2> C = {-1, 0};
+    // Measurement matrix: state is distance, ToF measures distance
+    BLA::Matrix<1, 2> C = {1, 0};
 
     // Noise covariances
     BLA::Matrix<2, 2> Sigma_u; // process noise
     BLA::Matrix<1, 1> Sigma_z; // measurement noise
 
-    float sigma_pos = 50.0f; // process noise position (mm)
-    float sigma_vel = 50.0f; // process noise velocity (mm/s)
-    float sigma_tof = 20.0f; // measurement noise (mm)
+    float sigma_pos = 1.0f;   // process noise position (mm)
+    float sigma_vel = 100.0f; // process noise velocity (mm/s)
+    float sigma_tof = 50.0f;  // measurement noise (mm)
 
     // Motor input (set by PID or externally)
     float motor_input = 0.0f; // normalized PWM input u
+    int last_tof_time = -1;   // timestamp of last ToF update
 
     // Output log buffers
     CircularBuffer<int, 0x100> log_times;
@@ -59,7 +60,7 @@ namespace kalman {
             Ad(1, 1) = 1 - drag * dt;
 
             Bd(0, 0) = 0;
-            Bd(1, 0) = momentum * dt;
+            Bd(1, 0) = -momentum * dt;  // positive PWM decreases distance
 
             Sigma_u(0, 0) = sigma_pos * sigma_pos;
             Sigma_u(0, 1) = 0;
@@ -79,7 +80,7 @@ namespace kalman {
         // Update step with ToF measurement
         void update(float tof_mm) {
             BLA::Matrix<1, 1> z;
-            z(0, 0) = -tof_mm; // negate to match C = [-1, 0]
+            z(0, 0) = tof_mm;
             kf.update<1>(C, Sigma_z, z);
         }
 
@@ -175,11 +176,14 @@ namespace kalman {
         // Feed current motor PWM as control input
         motor_input = (motors::current_left + motors::current_right) / 2.0f;
 
-        // Predict every loop iteration with current motor input
+        // Predict every loop iteration
         methods::predict(motor_input);
 
-        // Update with current best-guess ToF reading
-        methods::update((float)tof::dist1[0]);
+        // Update only when a new ToF reading arrives
+        if (tof::times1.size() > 0 && tof::times1[0] != last_tof_time) {
+            last_tof_time = tof::times1[0];
+            methods::update((float)tof::dist1[0]);
+        }
 
         // Log
         log_times.push((int)timer::methods::time_us());

@@ -85,8 +85,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="0.02"
-                                        data-committed="0.02"
+                                        value="0"
+                                        data-committed="0"
                                     />
                                 </label>
                                 <label data-pid="deadband">
@@ -96,6 +96,27 @@
                                         step="1"
                                         value="120"
                                         data-committed="120"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Yaw Correction</h3>
+                                <label data-pid="yaw_kp">
+                                    <span class="pid-label">Yaw Kp</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="3.0"
+                                        data-committed="3.0"
+                                    />
+                                </label>
+                                <label data-pid="yaw_kd">
+                                    <span class="pid-label">Yaw Kd</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.5"
+                                        data-committed="0.5"
                                     />
                                 </label>
                             </div>
@@ -113,78 +134,6 @@
                         </div>
                     </div>
 
-                    <!-- Angle PID Panel -->
-                    <div class="panel" id="angle-pid-panel">
-                        <h2>Angle PD</h2>
-                        <div class="pid-fields">
-                            <div class="pid-group">
-                                <h3>Gains</h3>
-                                <label data-apid="kp">
-                                    <span class="pid-label">Kp</span>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value="4.0"
-                                        data-committed="4.0"
-                                    />
-                                </label>
-                                <label data-apid="kd">
-                                    <span class="pid-label">Kd</span>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value="0.3"
-                                        data-committed="0.3"
-                                    />
-                                </label>
-                            </div>
-                            <div class="pid-group">
-                                <h3>Setpoint</h3>
-                                <label data-apid="setpoint">
-                                    <span class="pid-label">Target (deg)</span>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value="90"
-                                        data-committed="90"
-                                    />
-                                </label>
-                            </div>
-                            <div class="pid-group">
-                                <h3>Params</h3>
-                                <label data-apid="rc">
-                                    <span class="pid-label">D RC</span>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value="0.01"
-                                        data-committed="0.01"
-                                    />
-                                </label>
-                                <label data-apid="deadband">
-                                    <span class="pid-label">Deadband</span>
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value="150"
-                                        data-committed="150"
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                        <div class="pid-actions">
-                            <label data-apid="duration">
-                                <span class="pid-label">Duration (ms)</span>
-                                <input type="number" step="1" value="3000" />
-                            </label>
-                            <button id="apid-start">Start</button>
-                            <button id="apid-stop" class="btn-danger">
-                                Stop
-                            </button>
-                            <button id="apid-data">Get Data</button>
-                        </div>
-                    </div>
-
                     <!-- Kalman Panel -->
                     <div class="panel" id="kf-panel">
                         <h2>Kalman Filter</h2>
@@ -196,8 +145,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="1.0"
-                                        data-committed="1.0"
+                                        value="0.31"
+                                        data-committed="0.31"
                                     />
                                 </label>
                                 <label data-kf="momentum">
@@ -205,8 +154,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="200"
-                                        data-committed="200"
+                                        value="8.84"
+                                        data-committed="8.84"
                                     />
                                 </label>
                             </div>
@@ -219,8 +168,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="50"
-                                        data-committed="50"
+                                        value="0.87"
+                                        data-committed="0.87"
                                     />
                                 </label>
                                 <label data-kf="sigma_2">
@@ -230,8 +179,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="50"
-                                        data-committed="50"
+                                        value="172.5"
+                                        data-committed="172.5"
                                     />
                                 </label>
                                 <label data-kf="sigma_3">
@@ -241,8 +190,8 @@
                                     <input
                                         type="number"
                                         step="any"
-                                        value="20"
-                                        data-committed="20"
+                                        value="1.8"
+                                        data-committed="1.8"
                                     />
                                 </label>
                             </div>

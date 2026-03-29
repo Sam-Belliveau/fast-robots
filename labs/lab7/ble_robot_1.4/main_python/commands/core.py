@@ -112,3 +112,11 @@ class StopRecording(BLECommand[None]):
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> None:
         return None
+
+
+@dataclass
+class GetAvgHz(BLECommand[float]):
+    cmd_name = "GET_AVG_HZ"
+    def write_params(self, w: PacketWriter) -> None: pass
+    def parse_response(self, fields: list[Any]) -> float:
+        return fields[0] if fields else 0.0
