@@ -2,7 +2,7 @@
 
 // Angle PID subsystem
 // Owns: orientation PD controller, debug buffers.
-// Depends on: imu (yaw, yaw_valid), motors (set, stop).
+// Writes output_left / output_right for the motors subsystem to pull.
 
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
@@ -18,11 +18,13 @@ namespace angle_pid {
 
     PID controller;
 
+    float output_left = 0.0f;
+    float output_right = 0.0f;
+
     bool active = false;
     unsigned long start_time = 0;
     unsigned long duration_ms = 3000;
-    float setpoint = 90;  // relative target angle in degrees
-    float yaw_offset = 0; // yaw at start, used to make setpoint relative
+    float setpoint = 0; // absolute target angle in degrees
 
     CircularBuffer<int, 0x100> times;
     CircularBuffer<int, 0x100> angle_buf;
@@ -52,7 +54,8 @@ namespace angle_pid {
 
             if (millis() - start_time >= duration_ms) {
                 active = false;
-                motors::methods::stop();
+                output_left = 0.0f;
+                output_right = 0.0f;
                 INFO_PRINTLN(F("Angle PID complete"));
                 return;
             }
@@ -60,20 +63,19 @@ namespace angle_pid {
             if (!imu::yaw_valid)
                 return;
 
-            // Relative angle from start
-            float rel_angle = wrap_angle(imu::yaw - yaw_offset);
-            float error = wrap_angle(setpoint - rel_angle);
+            float offset = wrap_angle(imu::yaw - setpoint);
 
-            // Use PD controller (kI should be 0)
-            float output = controller.compute(rel_angle, rel_angle + error);
+            // Pass error directly so the derivative doesn't spike on wrap
+            float output = controller.compute(offset, 0);
             int pwm = to_pwm(output);
 
             // Differential drive: left and right spin in opposite directions
-            motors::methods::set(-pwm, pwm);
+            output_left = -pwm;
+            output_right = pwm;
 
             times.push((int)(timer::methods::time_us()));
-            angle_buf.push((int)(rel_angle * 10)); // store 0.1 deg resolution
-            error_buf.push((int)(error * 10));
+            angle_buf.push((int)(imu::yaw * 10)); // store 0.1 deg resolution
+            error_buf.push((int)(offset * 10));
             motor_out.push(pwm);
             motor_left.push((int)(motors::current_left));
             motor_right.push((int)(motors::current_right));
@@ -92,15 +94,10 @@ namespace angle_pid {
             BLE_CHECK_READ(req, req.read(duration), "duration");
             duration_ms = (unsigned long)duration;
 
-            // Stop motors and reset controller state
-            motors::methods::stop();
+            // Reset output and controller state
+            output_left = 0.0f;
+            output_right = 0.0f;
             controller.reset();
-
-            // Flush stale DMP data and get a fresh yaw
-            imu::myICM.resetFIFO();
-            delay(20);
-            imu::methods::read_dmp();
-            yaw_offset = imu::yaw;
 
             times.clear();
             angle_buf.clear();
@@ -115,8 +112,6 @@ namespace angle_pid {
 
             INFO_PRINT(F("Angle PID start: sp="));
             INFO_PRINT(setpoint);
-            INFO_PRINT(F(" offset="));
-            INFO_PRINT(yaw_offset);
             INFO_PRINT(F(" kP="));
             INFO_PRINT(controller.kP);
             INFO_PRINT(F(" kD="));
@@ -128,7 +123,8 @@ namespace angle_pid {
 
         void stop(BLERequest &req) {
             active = false;
-            motors::methods::stop();
+            output_left = 0.0f;
+            output_right = 0.0f;
             INFO_PRINTLN(F("Angle PID stopped"));
             req.new_response().end();
         }
@@ -139,6 +135,15 @@ namespace angle_pid {
             setpoint = sp;
             INFO_PRINT(F("Angle PID setpoint: "));
             INFO_PRINTLN(sp);
+            req.new_response().end();
+        }
+
+        void set_setpoint_relative(BLERequest &req) {
+            float delta;
+            BLE_CHECK_READ(req, req.read(delta), "delta");
+            setpoint = imu::yaw + delta;
+            INFO_PRINT(F("Angle PID setpoint (rel): "));
+            INFO_PRINTLN(setpoint);
             req.new_response().end();
         }
 
@@ -207,7 +212,11 @@ namespace angle_pid {
     // Init
 
     void init() {
+        motors::methods::register_source(&output_left, &output_right);
+
         // PD controller: no integral term
+        controller.kP = 4.0f;
+        controller.kD = 0.1f;
         controller.kI = 0;
         controller.integrator_cap = 0;
         controller.integrator_range = 0;
@@ -218,6 +227,9 @@ namespace angle_pid {
             ANGLE_PID_SETPOINT, commands::set_setpoint
         );
         ble::methods::register_command(ANGLE_PID_GAINS, commands::set_gains);
+        ble::methods::register_command(
+            ANGLE_PID_SETPOINT_REL, commands::set_setpoint_relative
+        );
         ble::methods::register_command(ANGLE_PID_PARAMS, commands::set_params);
         ble::methods::register_command(
             SEND_ANGLE_PID_DATA, commands::send_data

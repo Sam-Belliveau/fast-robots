@@ -1,7 +1,9 @@
 #pragma once
 
 // Motors subsystem
-// Owns: motor pins, calibration, motor control functions with smoothing.
+// Owns: motor pins, calibration, motor control with smoothing.
+// Pull-based: other subsystems register their output variables as sources.
+// Each periodic tick, motors sums all sources, clamps, and drives hardware.
 
 #include "subsystem_serial.h"
 #include "subsystem_timer.h"
@@ -30,15 +32,28 @@ namespace motors {
     constexpr float motor_rc = 0.02f; // seconds
     constexpr float motor_alpha = timer::methods::alpha(motor_rc);
 
-    unsigned long last_set = 0;
-    const unsigned long watchdog_timeout_us = 2500000; // 2.5 seconds
-
     DeSticker desticker_left(120, 160);
     DeSticker desticker_right(80, 120);
+
+    // Source registration: each source provides pointers to its output pair.
+    static constexpr int MAX_SOURCES = 8;
+    struct Source {
+        float *left;
+        float *right;
+    };
+    Source sources[MAX_SOURCES];
+    int num_sources = 0;
 
     // Methods
 
     namespace methods {
+
+        // Register a motor source. Call during init().
+        void register_source(float *left, float *right) {
+            if (num_sources < MAX_SOURCES) {
+                sources[num_sources++] = {left, right};
+            }
+        }
 
         static void set_pwm(int left, int right) {
             left = constrain(left, -PWM_MAX, PWM_MAX);
@@ -65,24 +80,25 @@ namespace motors {
             target_right = 0.0;
             current_left = 0.0;
             current_right = 0.0;
-            last_set = 0;
             set_pwm(0, 0);
         }
 
-        void set(float left, float right) {
-            target_left = constrain(left, -PWM_MAX, PWM_MAX);
-            target_right = constrain(right, -PWM_MAX, PWM_MAX);
-            last_set = timer::methods::time_us();
-        }
-
         static void update() {
-            unsigned long now = timer::methods::time_us();
-
-            // Watchdog: stop motors if set() hasn't been called recently
-            if (last_set != 0 && (now - last_set) > watchdog_timeout_us) {
-                stop();
-                return;
+            // Normalize each source to [-1, 1] then sum
+            float sum_left = 0.0f;
+            float sum_right = 0.0f;
+            for (int i = 0; i < num_sources; i++) {
+                float l = *sources[i].left;
+                float r = *sources[i].right;
+                float m = max(max(fabsf(l), fabsf(r)), (float)PWM_MAX);
+                sum_left += l / m;
+                sum_right += r / m;
             }
+
+            // Normalize final sum to [-PWM_MAX, PWM_MAX]
+            float m = max(max(fabsf(sum_left), fabsf(sum_right)), 1.0f);
+            target_left = sum_left / m * PWM_MAX;
+            target_right = sum_right / m * PWM_MAX;
 
             current_left += (target_left - current_left) * motor_alpha;
             current_right += (target_right - current_right) * motor_alpha;
@@ -97,24 +113,6 @@ namespace motors {
     // Commands
 
     namespace commands {
-
-        void motor(BLERequest &req) {
-            int32_t left, right;
-            BLE_CHECK_READ(req, req.read(left), "left");
-            BLE_CHECK_READ(req, req.read(right), "right");
-            methods::set(left, right);
-            INFO_PRINT(F("Motors: L="));
-            INFO_PRINT(left);
-            INFO_PRINT(F(" R="));
-            INFO_PRINTLN(right);
-            req.new_response().end();
-        }
-
-        void motor_stop(BLERequest &req) {
-            methods::stop();
-            INFO_PRINTLN(F("Motors stopped"));
-            req.new_response().end();
-        }
 
         void motor_cal(BLERequest &req) {
             float c;
@@ -169,8 +167,6 @@ namespace motors {
 
         methods::stop();
 
-        ble::methods::register_command(MOTOR_CMD, commands::motor);
-        ble::methods::register_command(MOTOR_STOP, commands::motor_stop);
         ble::methods::register_command(MOTOR_CAL, commands::motor_cal);
         ble::methods::register_command(MOTOR_TEST, commands::motor_test);
     }

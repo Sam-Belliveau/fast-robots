@@ -91,6 +91,7 @@ from .angle_pid import (
     AnglePIDStart as AnglePIDStart,
     AnglePIDStop as AnglePIDStop,
     AnglePIDSetpoint as AnglePIDSetpoint,
+    AnglePIDSetpointRel as AnglePIDSetpointRel,
     AnglePIDGains as AnglePIDGains,
     AnglePIDParams as AnglePIDParams,
     SendAnglePIDData as SendAnglePIDData,

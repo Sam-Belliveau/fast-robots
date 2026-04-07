@@ -65,10 +65,8 @@ namespace timer {
 
         // Track average dt
         unsigned long actual_dt = now - prev_tick;
-        prev_tick = now;
 
         constexpr float a = methods::alpha(1.0f);
-        avg_dt_us += a * (actual_dt - avg_dt_us);
 
         if (now < sleep_until) {
             delayMicroseconds(sleep_until - now);
@@ -79,7 +77,10 @@ namespace timer {
             ERROR_PRINTLN(F(" Hz)"));
         }
 
+        avg_dt_us += a * (actual_dt - avg_dt_us);
         sleep_until += PERIOD_US;
+
+        prev_tick = micros();
     }
 
 } // namespace timer

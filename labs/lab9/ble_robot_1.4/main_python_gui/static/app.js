@@ -825,15 +825,15 @@ function gpPoll() {
     const dpadDown = gp.buttons[13] ? gp.buttons[13].pressed : false;
 
     if (dpadLeft && !gpDpadPrev.left) {
-        wsSend("AnglePIDSetpoint", {setpoint : "-90"});
+        wsSend("AnglePIDSetpointRel", {delta : "-90"});
         wsSend("AnglePIDStart", {duration_ms : "3000"});
     }
     if (dpadRight && !gpDpadPrev.right) {
-        wsSend("AnglePIDSetpoint", {setpoint : "90"});
+        wsSend("AnglePIDSetpointRel", {delta : "90"});
         wsSend("AnglePIDStart", {duration_ms : "3000"});
     }
     if (dpadDown && !gpDpadPrev.down) {
-        wsSend("AnglePIDSetpoint", {setpoint : "180"});
+        wsSend("AnglePIDSetpointRel", {delta : "180"});
         wsSend("AnglePIDStart", {duration_ms : "3000"});
     }
 

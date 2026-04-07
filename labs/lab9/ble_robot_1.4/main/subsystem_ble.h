@@ -57,7 +57,8 @@ enum CommandTypes {
     STEP_RESPONSE = 36,
     SEND_STEP_DATA = 37,
     GET_AVG_HZ = 38,
-    TOF_AUTO = 39, // unused
+    ANGLE_PID_SETPOINT_REL = 39,
+    TOF_AUTO = 40, // unused
 };
 
 typedef void (*CommandHandler)(BLERequest &);

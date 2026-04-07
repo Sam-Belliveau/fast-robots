@@ -2,7 +2,7 @@
 
 // PID subsystem
 // Owns: PID controller, PID state, debug buffers.
-// Depends on: tof (current1), motors (set, stop).
+// Writes output_left / output_right for the motors subsystem to pull.
 
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
@@ -21,6 +21,9 @@ namespace pid {
     PID controller;
     PID yaw_controller;
     float yaw_offset = 0;
+
+    float output_left = 0.0f;
+    float output_right = 0.0f;
 
     bool active = false;
     unsigned long start_time = 0;
@@ -57,7 +60,8 @@ namespace pid {
 
             if (millis() - start_time >= duration_ms) {
                 active = false;
-                motors::methods::stop();
+                output_left = 0.0f;
+                output_right = 0.0f;
                 INFO_PRINTLN(F("PID complete"));
                 return;
             }
@@ -80,7 +84,8 @@ namespace pid {
             int corr = constrain(
                 (int)yaw_controller.compute(rel_angle, 0), -PWM_MAX, PWM_MAX
             );
-            motors::methods::set(pwm - corr, pwm + corr);
+            output_left = pwm - corr;
+            output_right = pwm + corr;
 
             times.push((int)(timer::methods::time_us()));
             measurement.push((int)distance);
@@ -138,7 +143,8 @@ namespace pid {
 
         void stop(BLERequest &req) {
             active = false;
-            motors::methods::stop();
+            output_left = 0.0f;
+            output_right = 0.0f;
             INFO_PRINTLN(F("PID stopped"));
             req.new_response().end();
         }
@@ -245,6 +251,8 @@ namespace pid {
     // Init
 
     void init() {
+        motors::methods::register_source(&output_left, &output_right);
+
         // No derivative filtering — KF velocity is already smooth
         controller.d_filter.set_rc(0);
 

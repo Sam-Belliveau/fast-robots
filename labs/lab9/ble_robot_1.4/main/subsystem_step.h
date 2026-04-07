@@ -3,7 +3,7 @@
 // Step response subsystem
 // Drives motors at constant PWM while logging ToF distance.
 // Used to estimate drag and momentum for the Kalman filter.
-// Depends on: tof (current1), motors (set, stop).
+// Writes output_left / output_right for the motors subsystem to pull.
 
 #include "subsystem_serial.h"
 #include "subsystem_ble.h"
@@ -17,6 +17,9 @@
 namespace step {
 
     // Variables
+
+    float output_left = 0.0f;
+    float output_right = 0.0f;
 
     bool active = false;
     unsigned long start_time = 0;
@@ -48,7 +51,8 @@ namespace step {
 
             if (millis() - start_time >= duration_ms) {
                 active = false;
-                motors::methods::stop();
+                output_left = 0.0f;
+                output_right = 0.0f;
                 INFO_PRINTLN(F("Step complete"));
                 return;
             }
@@ -60,7 +64,8 @@ namespace step {
             if ((dist >= 0 && dist < (int)min_distance) ||
                 (ttc >= 0 && ttc < min_ttc_ms)) {
                 active = false;
-                motors::methods::stop();
+                output_left = 0.0f;
+                output_right = 0.0f;
                 INFO_PRINT(F("Step ESTOP: d="));
                 INFO_PRINT(dist);
                 INFO_PRINT(F("mm ttc="));
@@ -74,7 +79,8 @@ namespace step {
             int corr = constrain(
                 (int)yaw_controller.compute(rel_angle, 0), -PWM_MAX, PWM_MAX
             );
-            motors::methods::set(pwm - corr, pwm + corr);
+            output_left = pwm - corr;
+            output_right = pwm + corr;
 
             // Only log when a new raw ToF reading arrives
             if (tof::times1.size() == 0)
@@ -154,6 +160,8 @@ namespace step {
         yaw_controller.kD = 0.5;
         yaw_controller.integrator_cap = 0;
         yaw_controller.integrator_range = 0;
+
+        motors::methods::register_source(&output_left, &output_right);
 
         ble::methods::register_command(STEP_RESPONSE, commands::start);
         ble::methods::register_command(SEND_STEP_DATA, commands::send_data);
