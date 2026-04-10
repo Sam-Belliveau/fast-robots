@@ -12,8 +12,8 @@ class DeSticker {
     DeSticker(
         int thresh_low,
         int thresh_high,
-        int kick_pwm = 192,
-        unsigned long pulse_us = 40000,
+        int kick_pwm = 255,
+        unsigned long pulse_us = 30000,
         unsigned long pulse_ext_us = 10000
     )
         : thresh_low(thresh_low), thresh_high(thresh_high), kick_pwm(kick_pwm),

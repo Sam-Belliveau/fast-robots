@@ -29,6 +29,15 @@ namespace imu {
     float yaw = 0;          // current DMP yaw in degrees
     bool yaw_valid = false; // true when a new DMP reading arrived
 
+    // Orientation from accelerometer Z with hysteresis
+    enum Orientation { RIGHT_SIDE_UP, IN_BETWEEN, UPSIDE_DOWN };
+    Orientation orientation = RIGHT_SIDE_UP;
+
+    // Thresholds in mg (ICM-20948 accZ is in mg)
+    constexpr float UP_THRESH = 500.0f;
+    constexpr float DOWN_THRESH = -500.0f;
+    constexpr float HYST = 200.0f;
+
     CircularBuffer<int, 0x100> times;
     CircularBuffer<float, 0x100> acc_x;
     CircularBuffer<float, 0x100> acc_y;
@@ -70,12 +79,32 @@ namespace imu {
             }
         }
 
+        void update_orientation(float az) {
+            switch (orientation) {
+            case RIGHT_SIDE_UP:
+                if (az < UP_THRESH - HYST)
+                    orientation = IN_BETWEEN;
+                break;
+            case IN_BETWEEN:
+                if (az > UP_THRESH + HYST)
+                    orientation = RIGHT_SIDE_UP;
+                else if (az < DOWN_THRESH - HYST)
+                    orientation = UPSIDE_DOWN;
+                break;
+            case UPSIDE_DOWN:
+                if (az > DOWN_THRESH + HYST)
+                    orientation = IN_BETWEEN;
+                break;
+            }
+        }
+
         void read() {
             if (!ok)
                 return;
 
             if (myICM.dataReady()) {
                 myICM.getAGMT();
+                update_orientation(myICM.accZ());
                 times.push(timer::methods::time_us());
                 acc_x.push(myICM.accX());
                 acc_y.push(myICM.accY());

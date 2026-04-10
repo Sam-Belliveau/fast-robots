@@ -234,6 +234,124 @@
                         </div>
                     </div>
 
+                    <!-- Stunts Panel -->
+                    <div class="panel" id="stunt-panel">
+                        <h2>Stunts</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Parameters</h3>
+                                <label data-stunt="speed">
+                                    <span class="pid-label">Speed</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="200"
+                                        data-committed="200"
+                                    />
+                                </label>
+                                <label data-stunt="trigger">
+                                    <span class="pid-label">Trigger (mm)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="914"
+                                        data-committed="914"
+                                    />
+                                </label>
+                                <label data-stunt="return_speed">
+                                    <span class="pid-label">Return Speed</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="200"
+                                        data-committed="200"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Yaw Gains</h3>
+                                <label data-stunt="yaw_kp">
+                                    <span class="pid-label">Kp</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="4.0"
+                                        data-committed="4.0"
+                                    />
+                                </label>
+                                <label data-stunt="yaw_kd">
+                                    <span class="pid-label">Kd</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="0.1"
+                                        data-committed="0.1"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <label data-stunt="duration">
+                                <span class="pid-label">Duration (ms)</span>
+                                <input type="number" step="1" value="5000" />
+                            </label>
+                            <button id="stunt-drift">Drift</button>
+                            <button id="stunt-flip">Flip</button>
+                            <button id="stunt-stop" class="btn-danger">
+                                Stop
+                            </button>
+                            <button id="stunt-data">Get Data</button>
+                        </div>
+                    </div>
+
+                    <!-- Mapping Panel -->
+                    <div class="panel" id="map-panel">
+                        <h2>Mapping</h2>
+                        <div class="pid-fields">
+                            <div class="pid-group">
+                                <h3>Settle</h3>
+                                <label data-map="settle_threshold">
+                                    <span class="pid-label">Threshold (deg)</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="5"
+                                        data-committed="5"
+                                    />
+                                </label>
+                                <label data-map="settle_time">
+                                    <span class="pid-label">Settle (ms)</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="500"
+                                        data-committed="500"
+                                    />
+                                </label>
+                                <label data-map="step_timeout">
+                                    <span class="pid-label">Step Timeout (ms)</span>
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="5000"
+                                        data-committed="5000"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="pid-actions">
+                            <label data-map="num_steps">
+                                <span class="pid-label">Steps</span>
+                                <input type="number" step="1" value="18" />
+                            </label>
+                            <button id="map-start">Start</button>
+                            <button id="map-stop" class="btn-danger">
+                                Stop
+                            </button>
+                            <button id="map-data">Get Data</button>
+                        </div>
+                    </div>
+
                     <!-- Joystick Panel -->
                     <div class="panel" id="joystick-panel">
                         <h2>Drive</h2>

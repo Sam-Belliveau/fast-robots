@@ -79,6 +79,10 @@ function populateCommandDropdown(commands) {
             category = "Kalman";
         else if (name === "StepResponse" || name === "SendStepData")
             category = "Step Response";
+        else if (name.startsWith("Stunt") || name === "SendStuntData")
+            category = "Stunts";
+        else if (name.startsWith("Map") || name === "SendMapData")
+            category = "Mapping";
         else if (
             ["StartRecording", "StopRecording", "StoreTimeMillis",
              "SendTimeMillis", "GetTimeMillis"].includes(name)
@@ -100,7 +104,9 @@ function populateCommandDropdown(commands) {
         "Motors",
         "PID",
         "Kalman",
-        "Step Response"
+        "Step Response",
+        "Stunts",
+        "Mapping"
     ];
     order.forEach((cat) => {
         if (!groups[cat]) return;
@@ -841,6 +847,182 @@ function gpPoll() {
     gpDpadPrev.right = dpadRight;
     gpDpadPrev.down = dpadDown;
 }
+
+// ============================================================
+// Stunts Dashboard
+// ============================================================
+
+const stuntFields = document.querySelectorAll("#stunt-panel .pid-group label");
+
+stuntFields.forEach((label) => {
+    const input = label.querySelector("input");
+    input.addEventListener("input", () => {
+        const committed = input.dataset.committed;
+        const dirty = input.value !== committed;
+        input.classList.toggle("dirty", dirty);
+        const span = label.querySelector(".pid-label");
+        let marker = span.querySelector(".dirty-marker");
+        if (dirty && !marker) {
+            marker = document.createElement("span");
+            marker.className = "dirty-marker";
+            marker.textContent = " *";
+            span.appendChild(marker);
+        } else if (!dirty && marker) {
+            marker.remove();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commitStuntFields();
+    });
+});
+
+function commitStuntFields() {
+    const get = (name) => {
+        const label = document.querySelector(
+            `#stunt-panel label[data-stunt="${name}"]`
+        );
+        return label.querySelector("input");
+    };
+
+    const speedIn = get("speed");
+    const triggerIn = get("trigger");
+    const retIn = get("return_speed");
+    const yawKpIn = get("yaw_kp");
+    const yawKdIn = get("yaw_kd");
+
+    const paramsDirty = [speedIn, triggerIn, retIn].some(
+        (i) => i.value !== i.dataset.committed
+    );
+    const yawDirty = [yawKpIn, yawKdIn].some(
+        (i) => i.value !== i.dataset.committed
+    );
+
+    if (paramsDirty || (!paramsDirty && !yawDirty)) {
+        wsSend("StuntParams", {
+            speed : speedIn.value,
+            trigger_distance : triggerIn.value,
+            return_speed : retIn.value,
+        });
+        [speedIn, triggerIn, retIn].forEach(markCommitted);
+    }
+    if (yawDirty || (!paramsDirty && !yawDirty)) {
+        wsSend("StuntYawGains", {
+            kp : yawKpIn.value,
+            kd : yawKdIn.value,
+        });
+        [yawKpIn, yawKdIn].forEach(markCommitted);
+    }
+}
+
+let stuntAutoFetchTimer = null;
+
+document.getElementById("stunt-drift").addEventListener("click", () => {
+    commitStuntFields();
+    const dur = document.querySelector(
+        '#stunt-panel label[data-stunt="duration"] input'
+    ).value;
+    wsSend("StuntDrift", { duration_ms: dur });
+
+    if (stuntAutoFetchTimer) clearTimeout(stuntAutoFetchTimer);
+    stuntAutoFetchTimer = setTimeout(() => {
+        wsSend("SendStuntData", {});
+        stuntAutoFetchTimer = null;
+    }, Number(dur) + 500);
+});
+
+document.getElementById("stunt-flip").addEventListener("click", () => {
+    commitStuntFields();
+    const dur = document.querySelector(
+        '#stunt-panel label[data-stunt="duration"] input'
+    ).value;
+    wsSend("StuntFlip", { duration_ms: dur });
+
+    if (stuntAutoFetchTimer) clearTimeout(stuntAutoFetchTimer);
+    stuntAutoFetchTimer = setTimeout(() => {
+        wsSend("SendStuntData", {});
+        stuntAutoFetchTimer = null;
+    }, Number(dur) + 500);
+});
+
+document.getElementById(
+    "stunt-stop"
+).addEventListener("click", () => { wsSend("StuntStop", {}); });
+
+document.getElementById(
+    "stunt-data"
+).addEventListener("click", () => { wsSend("SendStuntData", {}); });
+
+// ============================================================
+// Mapping Dashboard
+// ============================================================
+
+const mapFields = document.querySelectorAll("#map-panel .pid-group label");
+
+mapFields.forEach((label) => {
+    const input = label.querySelector("input");
+    input.addEventListener("input", () => {
+        const committed = input.dataset.committed;
+        const dirty = input.value !== committed;
+        input.classList.toggle("dirty", dirty);
+        const span = label.querySelector(".pid-label");
+        let marker = span.querySelector(".dirty-marker");
+        if (dirty && !marker) {
+            marker = document.createElement("span");
+            marker.className = "dirty-marker";
+            marker.textContent = " *";
+            span.appendChild(marker);
+        } else if (!dirty && marker) {
+            marker.remove();
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commitMapFields();
+    });
+});
+
+function commitMapFields() {
+    const get = (name) => {
+        const label = document.querySelector(
+            `#map-panel label[data-map="${name}"]`
+        );
+        return label.querySelector("input");
+    };
+
+    const threshIn = get("settle_threshold");
+    const settleIn = get("settle_time");
+    const timeoutIn = get("step_timeout");
+
+    const dirty = [threshIn, settleIn, timeoutIn].some(
+        (i) => i.value !== i.dataset.committed
+    );
+
+    if (dirty) {
+        wsSend("MapParams", {
+            settle_threshold : threshIn.value,
+            settle_time_ms : settleIn.value,
+            step_timeout_ms : timeoutIn.value,
+        });
+        [threshIn, settleIn, timeoutIn].forEach(markCommitted);
+    }
+}
+
+document.getElementById("map-start").addEventListener("click", () => {
+    commitMapFields();
+    const steps = document.querySelector(
+        '#map-panel label[data-map="num_steps"] input'
+    ).value;
+    wsSend("MapStart", {num_steps : steps});
+});
+
+document.getElementById(
+    "map-stop"
+).addEventListener("click", () => { wsSend("MapStop", {}); });
+
+document.getElementById(
+    "map-data"
+).addEventListener("click", () => { wsSend("SendMapData", {}); });
 
 // --- Init ---
 initWebSocket();

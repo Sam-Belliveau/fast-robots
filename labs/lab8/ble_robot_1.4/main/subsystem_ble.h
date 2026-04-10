@@ -57,7 +57,18 @@ enum CommandTypes {
     STEP_RESPONSE = 36,
     SEND_STEP_DATA = 37,
     GET_AVG_HZ = 38,
-    TOF_AUTO = 39, // unused
+    ANGLE_PID_SETPOINT_REL = 39,
+    TOF_AUTO = 40, // unused
+    STUNT_DRIFT = 41,
+    STUNT_FLIP = 42,
+    STUNT_STOP = 43,
+    STUNT_PARAMS = 44,
+    STUNT_YAW_GAINS = 45,
+    SEND_STUNT_DATA = 46,
+    MAP_START = 47,
+    MAP_STOP = 48,
+    MAP_PARAMS = 49,
+    SEND_MAP_DATA = 50,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

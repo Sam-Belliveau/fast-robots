@@ -45,6 +45,16 @@ from main_python.commands import (
     StepResponse,
     SendStepData,
     GetAvgHz,
+    StuntDrift,
+    StuntFlip,
+    StuntStop,
+    StuntParams,
+    StuntYawGains,
+    SendStuntData,
+    MapStart,
+    MapStop,
+    MapParams,
+    SendMapData,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -87,6 +97,16 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     StepResponse,
     SendStepData,
     GetAvgHz,
+    StuntDrift,
+    StuntFlip,
+    StuntStop,
+    StuntParams,
+    StuntYawGains,
+    SendStuntData,
+    MapStart,
+    MapStop,
+    MapParams,
+    SendMapData,
 ]
 
 

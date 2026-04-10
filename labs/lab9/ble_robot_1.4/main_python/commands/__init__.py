@@ -97,3 +97,19 @@ from .angle_pid import (
     SendAnglePIDData as SendAnglePIDData,
     AnglePIDSample as AnglePIDSample,
 )
+from .stunts import (
+    StuntDrift as StuntDrift,
+    StuntFlip as StuntFlip,
+    StuntStop as StuntStop,
+    StuntParams as StuntParams,
+    StuntYawGains as StuntYawGains,
+    SendStuntData as SendStuntData,
+    StuntSample as StuntSample,
+)
+from .mapping import (
+    MapStart as MapStart,
+    MapStop as MapStop,
+    MapParams as MapParams,
+    SendMapData as SendMapData,
+    MapSample as MapSample,
+)

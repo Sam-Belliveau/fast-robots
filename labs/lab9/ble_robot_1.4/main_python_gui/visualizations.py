@@ -231,6 +231,86 @@ def _render_step(samples: list) -> str:
     return _fig_to_base64(fig)
 
 
+@register("SendStuntData")
+def _render_stunt(samples: list) -> str:
+    if not samples:
+        return "<em>No stunt data</em>"
+    times = [s.time for s in samples]
+    t0 = times[0]
+    t_sec = [(t - t0) / 1e6 for t in times]
+
+    ORIENT_LABELS = {0: "right-side-up", 1: "in-between", 2: "upside-down"}
+
+    fig, (ax_dist, ax_angle, ax_motor) = plt.subplots(
+        3, 1, figsize=(8, 8), sharex=True
+    )
+
+    ax_dist.plot(t_sec, [s.distance for s in samples], label="distance")
+    ax_dist.set_ylabel("Distance (mm)")
+    ax_dist.legend()
+
+    ax_angle.plot(
+        t_sec, [s.angle / 10.0 for s in samples], label="yaw", color="purple"
+    )
+    ax_angle.set_ylabel("Angle (deg)")
+    ax_angle.legend()
+
+    ax_motor.plot(
+        t_sec, [s.motor_left for s in samples],
+        label="motor L", color="blue"
+    )
+    ax_motor.plot(
+        t_sec, [s.motor_right for s in samples],
+        label="motor R", color="green"
+    )
+    ax_motor.set_ylabel("PWM")
+    ax_motor.set_xlabel("Time (s)")
+    ax_motor.legend()
+
+    # Color background by orientation
+    orient_colors = {0: "#d4edda", 1: "#fff3cd", 2: "#f8d7da"}
+    prev_ori = samples[0].orientation
+    seg_start = t_sec[0]
+    for i in range(1, len(samples)):
+        if samples[i].orientation != prev_ori or i == len(samples) - 1:
+            for ax in (ax_dist, ax_angle, ax_motor):
+                ax.axvspan(
+                    seg_start, t_sec[i],
+                    alpha=0.15,
+                    color=orient_colors.get(prev_ori, "#eeeeee"),
+                )
+            prev_ori = samples[i].orientation
+            seg_start = t_sec[i]
+
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
+@register("SendMapData")
+def _render_map(samples: list) -> str:
+    if not samples:
+        return "<em>No map data</em>"
+
+    angles_deg = np.array([s.angle / 10.0 for s in samples])
+    tof1 = np.array([s.tof1 for s in samples], dtype=float)
+    tof2 = np.array([s.tof2 for s in samples], dtype=float)
+    theta = np.deg2rad(angles_deg)
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection="polar")
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+
+    ax.plot(theta, tof1, "o-", label="front ToF", color="tab:blue")
+    ax.plot(theta, tof2, "s-", label="side ToF", color="tab:orange")
+    ax.set_rlabel_position(135)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1.1))
+    ax.set_title("Mapping scan")
+
+    fig.tight_layout()
+    return _fig_to_base64(fig)
+
+
 @register("SendAnglePIDData")
 def _render_angle_pid(samples: list) -> str:
     if not samples:

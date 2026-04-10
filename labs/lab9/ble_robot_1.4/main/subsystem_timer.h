@@ -11,7 +11,7 @@ namespace timer {
 
     // Variables
 
-    constexpr float FREQ_HZ = 100.0f;
+    constexpr float FREQ_HZ = 128.0f;
     constexpr float PERIOD_S = 1.0f / FREQ_HZ;
     constexpr unsigned long PERIOD_US = (unsigned long)(PERIOD_S * 1e6);
     constexpr unsigned long MAX_DELAY_US = 1000000; // 1 second
@@ -26,7 +26,11 @@ namespace timer {
     namespace methods {
 
         constexpr inline float alpha(float rc) {
-            return 1.0f - expf(-PERIOD_S / rc);
+            if (rc <= PERIOD_S / 4.0) {
+                return 1.0;
+            } else {
+                return -expm1f(-PERIOD_S / rc);
+            }
         }
 
         constexpr inline unsigned long period_us() {

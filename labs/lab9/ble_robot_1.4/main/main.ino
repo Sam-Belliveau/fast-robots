@@ -10,6 +10,8 @@
 #include "subsystem_pid.h"
 #include "subsystem_angle_pid.h"
 #include "subsystem_step.h"
+#include "subsystem_stunts.h"
+#include "subsystem_mapping.h"
 
 void setup() {
     serial::init();
@@ -27,6 +29,8 @@ void setup() {
     pid::init();
     angle_pid::init();
     step::init();
+    stunts::init();
+    mapping::init();
 
     INFO_PRINT(F("Commands registered: "));
     INFO_PRINTLN(ble::num_commands);
@@ -47,6 +51,8 @@ void loop() {
             pid::periodic();
             angle_pid::periodic();
             step::periodic();
+            stunts::periodic();
+            mapping::periodic();
             motors::periodic(); // last: sums all sources
             ble::periodic();
             timer::periodic();

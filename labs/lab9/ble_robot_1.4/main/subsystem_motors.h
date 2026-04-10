@@ -29,14 +29,14 @@ namespace motors {
     float current_left = 0.0;
     float current_right = 0.0;
 
-    constexpr float motor_rc = 0.02f; // seconds
+    constexpr float motor_rc = 0.001f; // seconds
     constexpr float motor_alpha = timer::methods::alpha(motor_rc);
 
     DeSticker desticker_left(120, 160);
     DeSticker desticker_right(80, 120);
 
     // Source registration: each source provides pointers to its output pair.
-    static constexpr int MAX_SOURCES = 8;
+    static constexpr int MAX_SOURCES = 16;
     struct Source {
         float *left;
         float *right;

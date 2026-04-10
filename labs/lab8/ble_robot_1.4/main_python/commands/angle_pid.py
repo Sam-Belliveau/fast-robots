@@ -47,6 +47,16 @@ class AnglePIDSetpoint(BLECommand[None]):
 
 
 @dataclass
+class AnglePIDSetpointRel(BLECommand[None]):
+    delta: float
+    cmd_name = "ANGLE_PID_SETPOINT_REL"
+    def write_params(self, w: PacketWriter) -> None:
+        w.write(self.delta)
+    def parse_response(self, fields: list[Any]) -> None:
+        return None
+
+
+@dataclass
 class AnglePIDGains(BLECommand[None]):
     kp: float
     kd: float
