@@ -111,5 +111,5 @@ from .mapping import (
     MapStop as MapStop,
     MapParams as MapParams,
     SendMapData as SendMapData,
-    MapSample as MapSample,
+    MapBucket as MapBucket,
 )

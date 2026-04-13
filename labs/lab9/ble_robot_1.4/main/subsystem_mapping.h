@@ -1,78 +1,163 @@
 #pragma once
 
 // Mapping subsystem
-// Orchestrates angle PID to step through orientations while recording
-// ToF readings at each step. Used for Lab 9 room mapping.
+// Drives the robot through a full rotation, stopping every angular step to
+// collect a fixed number of unique ToF samples from both sensors. Each
+// sample is fused into an AngleMap with a Gaussian angular kernel so the
+// result is a smooth 360 degree distance estimate instead of a sparse set
+// of step-aligned readings.
 //
-// Flow: MAP_START -> robot steps through N evenly-spaced angles ->
-//       at each angle, waits for PID to settle, takes ToF reading ->
-//       after full rotation, stops -> SEND_MAP_DATA returns all readings.
+// Flow: MAP_START clears the map and commands angle PID to start_yaw.
+//       Each step rotates by 360/num_steps degrees, waits for the PID
+//       to settle, then requires N unique fresh ToF samples from both
+//       sensors before advancing. Sensor 2 is mounted 90 degrees
+//       clockwise of sensor 1 so its beam is fused at yaw + offset.
 
-#include "subsystem_serial.h"
+#include "lib_AngleMap.h"
+#include "subsystem_angle_pid.h"
 #include "subsystem_ble.h"
 #include "subsystem_imu.h"
+#include "subsystem_serial.h"
 #include "subsystem_tof.h"
-#include "subsystem_angle_pid.h"
-#include "lib_CircularBuffer.h"
-#include "lib_Zip.h"
 
 namespace mapping {
 
+    static constexpr int MAP_BUCKETS = 64;
+
     // Configuration
-    int num_steps = 18; // angular steps per rotation (18 = 20 deg each)
-    float settle_threshold = 5.0f;         // degrees error to consider settled
-    unsigned long settle_time_ms = 500;    // ms to hold settled before reading
-    unsigned long step_timeout_ms = 5000;  // max time per step
+    int num_steps = 36;            // 36 steps = 10 deg each
+    int samples_per_step = 10;     // unique fresh ToF samples per step
+    float settle_threshold = 5.0f; // deg, PID error considered settled
+    unsigned long settle_time_ms =
+        500; // ms held under threshold before sampling
+    unsigned long step_timeout_ms = 5000; // ms max per phase
+    float sensor2_offset_deg = -90.0f;    // sensor 2 beam offset (clockwise)
+    float angle_std_deg = 10.0f;          // Gaussian kernel std fed to AngleMap
 
     // State
+    AngleMap<MAP_BUCKETS> map;
+
+    enum Phase { IDLE, TURNING, SAMPLING };
+    Phase phase = IDLE;
     bool active = false;
     int current_step = 0;
     float start_yaw = 0;
-    unsigned long step_start_time = 0;
+    unsigned long phase_start_ms = 0;
+    unsigned long settle_start_ms = 0;
     bool settled = false;
-    unsigned long settle_start_time = 0;
 
-    // Data buffers
-    CircularBuffer<int, 0x100> times;
-    CircularBuffer<int, 0x100> angles;   // yaw * 10 (0.1 deg resolution)
-    CircularBuffer<int, 0x100> tof1_buf; // front sensor (mm)
-    CircularBuffer<int, 0x100> tof2_buf; // side sensor (mm)
+    int collected1 = 0;
+    int collected2 = 0;
+    unsigned long baseline_reads1 = 0;
+    unsigned long baseline_reads2 = 0;
 
     namespace methods {
 
-        void record_reading() {
-            times.push((int)(timer::methods::time_us()));
-            angles.push((int)(imu::yaw * 10));
-            tof1_buf.push(tof::methods::current1());
-            tof2_buf.push(tof::methods::current2());
-
-            INFO_PRINT(F("Map step "));
-            INFO_PRINT(current_step);
-            INFO_PRINT(F(": yaw="));
-            INFO_PRINT(imu::yaw);
-            INFO_PRINT(F(" d1="));
-            INFO_PRINT(tof::methods::current1());
-            INFO_PRINT(F(" d2="));
-            INFO_PRINTLN(tof::methods::current2());
-        }
-
-        void advance_step() {
-            float target =
-                start_yaw + current_step * (360.0f / num_steps);
+        void begin_turning() {
+            const float target =
+                start_yaw + (float)current_step * (360.0f / (float)num_steps);
             angle_pid::setpoint = target;
             angle_pid::controller.reset();
-            step_start_time = millis();
+            phase = TURNING;
+            phase_start_ms = millis();
             settled = false;
+        }
+
+        void begin_sampling() {
+            phase = SAMPLING;
+            collected1 = 0;
+            collected2 = 0;
+            baseline_reads1 = tof::reads1 + 1;
+            baseline_reads2 = tof::reads2 + 1;
+            phase_start_ms = millis();
+            // Hold position: angle PID keeps running so the robot does not
+            // drift while we wait for fresh ToF samples.
         }
 
         void finish() {
             active = false;
+            phase = IDLE;
             angle_pid::active = false;
             angle_pid::output_left = 0;
             angle_pid::output_right = 0;
-            INFO_PRINT(F("Mapping complete: "));
-            INFO_PRINT(times.size());
-            INFO_PRINTLN(F(" readings"));
+            INFO_PRINTLN(F("Mapping complete"));
+        }
+
+        void step_done() {
+            current_step++;
+            if (current_step >= num_steps) {
+                finish();
+                return;
+            }
+            begin_turning();
+        }
+
+        void update_turning() {
+            const float err = fabsf(
+                angle_pid::methods::wrap_angle(imu::yaw - angle_pid::setpoint)
+            );
+
+            if (err < settle_threshold) {
+                if (!settled) {
+                    settled = true;
+                    settle_start_ms = millis();
+                } else if (millis() - settle_start_ms >= settle_time_ms) {
+                    begin_sampling();
+                    return;
+                }
+            } else {
+                settled = false;
+            }
+
+            if (millis() - phase_start_ms >= step_timeout_ms) {
+                INFO_PRINT(F("Map turn timeout step="));
+                INFO_PRINTLN(current_step);
+                begin_sampling();
+            }
+        }
+
+        void update_sampling() {
+            if (collected1 < samples_per_step &&
+                tof::reads1 > baseline_reads1) {
+                baseline_reads1 = tof::reads1;
+                const int raw = tof::dist1.size() > 0 ? tof::dist1[0] : -1;
+                if (raw > 0) {
+                    map.update(imu::yaw, (float)raw, angle_std_deg);
+                    collected1++;
+                }
+            }
+
+            if (collected2 < samples_per_step &&
+                tof::reads2 > baseline_reads2) {
+                baseline_reads2 = tof::reads2;
+                const int raw = tof::dist2.size() > 0 ? tof::dist2[0] : -1;
+                if (raw > 0) {
+                    map.update(
+                        imu::yaw + sensor2_offset_deg, (float)raw, angle_std_deg
+                    );
+                    collected2++;
+                }
+            }
+
+            if (collected1 >= samples_per_step &&
+                collected2 >= samples_per_step) {
+                INFO_PRINT(F("Map step "));
+                INFO_PRINT(current_step);
+                INFO_PRINT(F(" yaw="));
+                INFO_PRINTLN(imu::yaw);
+                step_done();
+                return;
+            }
+
+            if (millis() - phase_start_ms >= step_timeout_ms) {
+                INFO_PRINT(F("Map sample timeout step="));
+                INFO_PRINT(current_step);
+                INFO_PRINT(F(" c1="));
+                INFO_PRINT(collected1);
+                INFO_PRINT(F(" c2="));
+                INFO_PRINTLN(collected2);
+                step_done();
+            }
         }
 
         void update() {
@@ -81,43 +166,10 @@ namespace mapping {
             if (!imu::yaw_valid)
                 return;
 
-            float error = fabsf(
-                angle_pid::methods::wrap_angle(
-                    imu::yaw - angle_pid::setpoint
-                )
-            );
-
-            // Check if settled at target angle
-            if (error < settle_threshold) {
-                if (!settled) {
-                    settled = true;
-                    settle_start_time = millis();
-                } else if (millis() - settle_start_time >=
-                           settle_time_ms) {
-                    // Settled long enough, take reading and advance
-                    record_reading();
-                    current_step++;
-                    if (current_step >= num_steps) {
-                        finish();
-                        return;
-                    }
-                    advance_step();
-                }
-            } else {
-                settled = false;
-            }
-
-            // Step timeout: take reading anyway and move on
-            if (millis() - step_start_time >= step_timeout_ms) {
-                INFO_PRINTLN(F("Map step timeout"));
-                record_reading();
-                current_step++;
-                if (current_step >= num_steps) {
-                    finish();
-                    return;
-                }
-                advance_step();
-            }
+            if (phase == TURNING)
+                update_turning();
+            else if (phase == SAMPLING)
+                update_sampling();
         }
 
     } // namespace methods
@@ -127,26 +179,19 @@ namespace mapping {
         void start(BLERequest &req) {
             int32_t steps;
             BLE_CHECK_READ(req, req.read(steps), "steps");
-            num_steps = steps;
+            if (steps > 0)
+                num_steps = steps;
 
-            // Clear data buffers
-            times.clear();
-            angles.clear();
-            tof1_buf.clear();
-            tof2_buf.clear();
+            map.clear();
 
-            // Reset DMP FIFO and read fresh yaw
             imu::myICM.resetFIFO();
             delay(20);
             imu::methods::read_dmp();
 
-            // Initialize state
             current_step = 0;
             start_yaw = imu::yaw;
-            settled = false;
             active = true;
 
-            // Activate angle PID with long duration
             angle_pid::controller.reset();
             angle_pid::times.clear();
             angle_pid::angle_buf.clear();
@@ -160,7 +205,7 @@ namespace mapping {
             angle_pid::start_time = millis();
             angle_pid::active = true;
 
-            methods::advance_step();
+            methods::begin_turning();
 
             INFO_PRINT(F("Mapping start: steps="));
             INFO_PRINT(num_steps);
@@ -176,43 +221,48 @@ namespace mapping {
 
         void set_params(BLERequest &req) {
             float threshold;
-            int32_t settle, timeout;
-            BLE_CHECK_READ(req, req.read(threshold), "threshold");
+            int32_t settle, timeout, samples;
+            float std_deg;
+            BLE_CHECK_READ(req, req.read(threshold), "settle_threshold");
             BLE_CHECK_READ(req, req.read(settle), "settle_ms");
             BLE_CHECK_READ(req, req.read(timeout), "timeout_ms");
+            BLE_CHECK_READ(req, req.read(samples), "samples_per_step");
+            BLE_CHECK_READ(req, req.read(std_deg), "angle_std_deg");
             settle_threshold = threshold;
             settle_time_ms = (unsigned long)settle;
             step_timeout_ms = (unsigned long)timeout;
+            if (samples > 0)
+                samples_per_step = samples;
+            if (std_deg > 0)
+                angle_std_deg = std_deg;
 
             INFO_PRINT(F("Map params: thresh="));
             INFO_PRINT(threshold);
             INFO_PRINT(F(" settle="));
             INFO_PRINT(settle);
             INFO_PRINT(F(" timeout="));
-            INFO_PRINTLN(timeout);
+            INFO_PRINT(timeout);
+            INFO_PRINT(F(" samples="));
+            INFO_PRINT(samples_per_step);
+            INFO_PRINT(F(" std="));
+            INFO_PRINTLN(angle_std_deg);
             req.new_response().end();
         }
 
         void send_data(BLERequest &req) {
             BLEResponse res = req.new_response();
-            zip(
-                [&](int t, int angle, int d1, int d2) {
-                    res.add((int32_t)t);
-                    res.add((int32_t)angle);
-                    res.add((int32_t)d1);
-                    res.add((int32_t)d2);
-                },
-                times.begin(),
-                times.end(),
-                angles.begin(),
-                tof1_buf.begin(),
-                tof2_buf.begin()
-            );
+            for (int i = 0; i < MAP_BUCKETS; ++i) {
+                const float center = AngleMap<MAP_BUCKETS>::bucket_center(i);
+                const float dist = map.bucket(i);
+                res.add((int32_t)i);
+                res.add(center);
+                res.add(dist);
+            }
             res.end();
 
             INFO_PRINT(F("SEND_MAP_DATA: "));
-            INFO_PRINT(times.size());
-            INFO_PRINTLN(F(" readings"));
+            INFO_PRINT(MAP_BUCKETS);
+            INFO_PRINTLN(F(" buckets"));
         }
 
     } // namespace commands
@@ -221,9 +271,7 @@ namespace mapping {
         ble::methods::register_command(MAP_START, commands::start);
         ble::methods::register_command(MAP_STOP, commands::stop_cmd);
         ble::methods::register_command(MAP_PARAMS, commands::set_params);
-        ble::methods::register_command(
-            SEND_MAP_DATA, commands::send_data
-        );
+        ble::methods::register_command(SEND_MAP_DATA, commands::send_data);
     }
 
     void periodic() {

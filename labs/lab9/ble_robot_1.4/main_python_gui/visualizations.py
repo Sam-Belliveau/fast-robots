@@ -287,25 +287,34 @@ def _render_stunt(samples: list) -> str:
 
 
 @register("SendMapData")
-def _render_map(samples: list) -> str:
-    if not samples:
+def _render_map(buckets: list) -> str:
+    if not buckets:
         return "<em>No map data</em>"
 
-    angles_deg = np.array([s.angle / 10.0 for s in samples])
-    tof1 = np.array([s.tof1 for s in samples], dtype=float)
-    tof2 = np.array([s.tof2 for s in samples], dtype=float)
-    theta = np.deg2rad(angles_deg)
+    ordered = sorted(buckets, key=lambda b: b.index)
+    valid = [b for b in ordered if b.distance >= 0]
+    if not valid:
+        return "<em>Map has no valid buckets</em>"
+
+    angles_deg = np.array([b.angle_deg for b in valid])
+    dists = np.array([b.distance for b in valid], dtype=float)
+
+    # Close the polygon by repeating the first point at the end.
+    theta = np.deg2rad(np.append(angles_deg, angles_deg[0]))
+    r = np.append(dists, dists[0])
 
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection="polar")
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
 
-    ax.plot(theta, tof1, "o-", label="front ToF", color="tab:blue")
-    ax.plot(theta, tof2, "s-", label="side ToF", color="tab:orange")
+    ax.plot(theta, r, "-", color="tab:blue", label="fused map")
+    ax.fill(theta, r, color="tab:blue", alpha=0.15)
+    ax.plot(theta, r, "o", color="tab:blue", markersize=4)
+
     ax.set_rlabel_position(135)
     ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1.1))
-    ax.set_title("Mapping scan")
+    ax.set_title(f"Fused angle map ({len(valid)}/{len(ordered)} buckets)")
 
     fig.tight_layout()
     return _fig_to_base64(fig)

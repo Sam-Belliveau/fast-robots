@@ -993,18 +993,21 @@ function commitMapFields() {
     const threshIn = get("settle_threshold");
     const settleIn = get("settle_time");
     const timeoutIn = get("step_timeout");
+    const samplesIn = get("samples_per_step");
+    const stdIn = get("angle_std");
 
-    const dirty = [threshIn, settleIn, timeoutIn].some(
-        (i) => i.value !== i.dataset.committed
-    );
+    const fields = [threshIn, settleIn, timeoutIn, samplesIn, stdIn];
+    const dirty = fields.some((i) => i.value !== i.dataset.committed);
 
     if (dirty) {
         wsSend("MapParams", {
             settle_threshold : threshIn.value,
             settle_time_ms : settleIn.value,
             step_timeout_ms : timeoutIn.value,
+            samples_per_step : samplesIn.value,
+            angle_std_deg : stdIn.value,
         });
-        [threshIn, settleIn, timeoutIn].forEach(markCommitted);
+        fields.forEach(markCommitted);
     }
 }
 

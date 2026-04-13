@@ -212,11 +212,7 @@
                             <div class="pid-group">
                                 <label data-step="pwm">
                                     <span class="pid-label">PWM</span>
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value="100"
-                                    />
+                                    <input type="number" step="1" value="100" />
                                 </label>
                                 <label data-step="duration">
                                     <span class="pid-label">Duration (ms)</span>
@@ -311,7 +307,9 @@
                             <div class="pid-group">
                                 <h3>Settle</h3>
                                 <label data-map="settle_threshold">
-                                    <span class="pid-label">Threshold (deg)</span>
+                                    <span class="pid-label"
+                                        >Threshold (deg)</span
+                                    >
                                     <input
                                         type="number"
                                         step="any"
@@ -324,17 +322,44 @@
                                     <input
                                         type="number"
                                         step="1"
-                                        value="500"
-                                        data-committed="500"
+                                        value="300"
+                                        data-committed="300"
                                     />
                                 </label>
                                 <label data-map="step_timeout">
-                                    <span class="pid-label">Step Timeout (ms)</span>
+                                    <span class="pid-label"
+                                        >Step Timeout (ms)</span
+                                    >
                                     <input
                                         type="number"
                                         step="1"
-                                        value="5000"
-                                        data-committed="5000"
+                                        value="4000"
+                                        data-committed="4000"
+                                    />
+                                </label>
+                            </div>
+                            <div class="pid-group">
+                                <h3>Sampling</h3>
+                                <label data-map="samples_per_step">
+                                    <span class="pid-label"
+                                        >Samples / step</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value="10"
+                                        data-committed="10"
+                                    />
+                                </label>
+                                <label data-map="angle_std">
+                                    <span class="pid-label"
+                                        >Angle std (deg)</span
+                                    >
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value="10"
+                                        data-committed="10"
                                     />
                                 </label>
                             </div>
@@ -342,7 +367,7 @@
                         <div class="pid-actions">
                             <label data-map="num_steps">
                                 <span class="pid-label">Steps</span>
-                                <input type="number" step="1" value="18" />
+                                <input type="number" step="1" value="36" />
                             </label>
                             <button id="map-start">Start</button>
                             <button id="map-stop" class="btn-danger">

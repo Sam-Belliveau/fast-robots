@@ -26,6 +26,12 @@ namespace tof {
     CircularBuffer<int, 0x10> times2;
     CircularBuffer<int, 0x10> dist2;
 
+    // Monotonic counters incremented each time a fresh raw reading is
+    // pushed. Consumers (e.g. the mapping subsystem) use these to detect
+    // unique new samples without peeking at the ring buffer internals.
+    unsigned long reads1 = 0;
+    unsigned long reads2 = 0;
+
     CircularBuffer<int, 0x100> plot_times;
     CircularBuffer<int, 0x100> plot_raw1;
     CircularBuffer<int, 0x100> plot_extrap1;
@@ -167,11 +173,13 @@ namespace tof {
             if (0 <= (distance = update(&sensor1, &mode1))) {
                 times1.push(time);
                 dist1.push(distance);
+                reads1++;
             }
 
             if (0 <= (distance = update(&sensor2, &mode2))) {
                 times2.push(time);
                 dist2.push(distance);
+                reads2++;
             }
 
             plot_times.push(time);
