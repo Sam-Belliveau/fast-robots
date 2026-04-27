@@ -1,0 +1,283 @@
+#pragma once
+
+// PID subsystem
+// Owns: PID controller, PID state, debug buffers.
+// Writes output_left / output_right for the motors subsystem to pull.
+
+#include "subsystem_serial.h"
+#include "subsystem_ble.h"
+#include "subsystem_imu.h"
+#include "subsystem_tof.h"
+#include "subsystem_motors.h"
+#include "subsystem_kalman.h"
+#include "lib_PID.h"
+#include "lib_CircularBuffer.h"
+#include "lib_Zip.h"
+
+namespace pid {
+
+    // Variables
+
+    PID controller;
+    PID yaw_controller;
+    float yaw_offset = 0;
+
+    float output_left = 0.0f;
+    float output_right = 0.0f;
+
+    bool active = false;
+    unsigned long start_time = 0;
+    unsigned long duration_ms = 3000;
+    float setpoint = 304; // default distance in mm
+
+    bool use_kf = true; // use Kalman filter distance
+
+    CircularBuffer<int, 0x100> times;
+    CircularBuffer<int, 0x100> measurement;
+    CircularBuffer<int, 0x100> error_buf;
+    CircularBuffer<int, 0x100> motor_out;
+    CircularBuffer<int, 0x100> motor_left;
+    CircularBuffer<int, 0x100> motor_right;
+    CircularBuffer<int, 0x100> p_buf;
+    CircularBuffer<int, 0x100> i_buf;
+    CircularBuffer<int, 0x100> d_buf;
+
+    // Methods
+
+    namespace methods {
+
+        static int to_pwm(float output) {
+            return constrain((int)output, -PWM_MAX, PWM_MAX);
+        }
+
+        static float wrap_angle(float angle) {
+            return angle - 360.0f * roundf(angle / 360.0f);
+        }
+
+        void update() {
+            if (!active)
+                return;
+
+            if (millis() - start_time >= duration_ms) {
+                active = false;
+                output_left = 0.0f;
+                output_right = 0.0f;
+                INFO_PRINTLN(F("PID complete"));
+                return;
+            }
+
+            // Choose distance source
+            float distance;
+            if (use_kf) {
+                distance = kalman::methods::distance();
+            } else {
+                distance = tof::methods::current1();
+            }
+
+            // Pass KF velocity to short-circuit the derivative term
+            float vel = use_kf ? kalman::methods::velocity() : NAN;
+            float output = -controller.compute(distance, setpoint, vel);
+            int pwm = to_pwm(output);
+
+            // Yaw correction for driving straight
+            float rel_angle = wrap_angle(imu::yaw - yaw_offset);
+            int corr = constrain(
+                (int)yaw_controller.compute(rel_angle, 0), -PWM_MAX, PWM_MAX
+            );
+            output_left = pwm - corr;
+            output_right = pwm + corr;
+
+            times.push((int)(timer::methods::time_us()));
+            measurement.push((int)distance);
+            error_buf.push((int)(setpoint - distance));
+            motor_out.push(pwm);
+            motor_left.push((int)(motors::current_left));
+            motor_right.push((int)(motors::current_right));
+            p_buf.push((int)(controller.p_out));
+            i_buf.push((int)(controller.i_out));
+            d_buf.push((int)(controller.d_out));
+        }
+
+    } // namespace methods
+
+    // Commands
+
+    namespace commands {
+
+        void start(BLERequest &req) {
+            int32_t duration;
+            BLE_CHECK_READ(req, req.read(duration), "duration");
+            duration_ms = (unsigned long)duration;
+
+            controller.reset();
+            yaw_controller.reset();
+            imu::myICM.resetFIFO();
+            delay(20);
+            imu::methods::read_dmp();
+            yaw_offset = imu::yaw;
+
+            times.clear();
+            measurement.clear();
+            error_buf.clear();
+            motor_out.clear();
+            motor_left.clear();
+            motor_right.clear();
+            p_buf.clear();
+            i_buf.clear();
+            d_buf.clear();
+            active = true;
+            start_time = millis();
+
+            INFO_PRINT(F("PID start: sp="));
+            INFO_PRINT(setpoint);
+            INFO_PRINT(F(" kP="));
+            INFO_PRINT(controller.kP);
+            INFO_PRINT(F(" kI="));
+            INFO_PRINT(controller.kI);
+            INFO_PRINT(F(" kD="));
+            INFO_PRINT(controller.kD);
+            INFO_PRINT(F(" dur="));
+            INFO_PRINTLN(duration_ms);
+            req.new_response().end();
+        }
+
+        void stop(BLERequest &req) {
+            active = false;
+            output_left = 0.0f;
+            output_right = 0.0f;
+            INFO_PRINTLN(F("PID stopped"));
+            req.new_response().end();
+        }
+
+        void set_setpoint(BLERequest &req) {
+            float sp;
+            BLE_CHECK_READ(req, req.read(sp), "setpoint");
+            setpoint = sp;
+            INFO_PRINT(F("PID setpoint: "));
+            INFO_PRINTLN(sp);
+            req.new_response().end();
+        }
+
+        void set_gains(BLERequest &req) {
+            float kp, ki, kd;
+            BLE_CHECK_READ(req, req.read(kp), "kp");
+            BLE_CHECK_READ(req, req.read(ki), "ki");
+            BLE_CHECK_READ(req, req.read(kd), "kd");
+            controller.kP = kp;
+            controller.kI = ki;
+            controller.kD = kd;
+            INFO_PRINT(F("PID gains: "));
+            INFO_PRINT(kp);
+            INFO_PRINT(F(" "));
+            INFO_PRINT(ki);
+            INFO_PRINT(F(" "));
+            INFO_PRINTLN(kd);
+            req.new_response().end();
+        }
+
+        void set_yaw_gains(BLERequest &req) {
+            float kp, kd;
+            BLE_CHECK_READ(req, req.read(kp), "kp");
+            BLE_CHECK_READ(req, req.read(kd), "kd");
+            yaw_controller.kP = kp;
+            yaw_controller.kD = kd;
+            INFO_PRINT(F("PID yaw gains: kP="));
+            INFO_PRINT(kp);
+            INFO_PRINT(F(" kD="));
+            INFO_PRINTLN(kd);
+            req.new_response().end();
+        }
+
+        void set_params(BLERequest &req) {
+            float cap, range, rc;
+            BLE_CHECK_READ(req, req.read(cap), "cap");
+            BLE_CHECK_READ(req, req.read(range), "range");
+            BLE_CHECK_READ(req, req.read(rc), "rc");
+            controller.integrator_cap = cap;
+            controller.integrator_range = range;
+            controller.d_filter.set_rc(rc);
+            INFO_PRINT(F("PID params: cap="));
+            INFO_PRINT(cap);
+            INFO_PRINT(F(" range="));
+            INFO_PRINT(range);
+            INFO_PRINT(F(" rc="));
+            INFO_PRINTLN(rc);
+            req.new_response().end();
+        }
+
+        void send_data(BLERequest &req) {
+            BLEResponse res = req.new_response();
+            zip(
+                [&](int t,
+                    int meas,
+                    int err,
+                    int pwm,
+                    int ml,
+                    int mr,
+                    int p,
+                    int i,
+                    int d) {
+                    res.add((int32_t)t);
+                    res.add((int32_t)meas);
+                    res.add((int32_t)err);
+                    res.add((int32_t)pwm);
+                    res.add((int32_t)ml);
+                    res.add((int32_t)mr);
+                    res.add((int32_t)p);
+                    res.add((int32_t)i);
+                    res.add((int32_t)d);
+                },
+                times.begin(),
+                times.end(),
+                measurement.begin(),
+                error_buf.begin(),
+                motor_out.begin(),
+                motor_left.begin(),
+                motor_right.begin(),
+                p_buf.begin(),
+                i_buf.begin(),
+                d_buf.begin()
+            );
+
+            res.end();
+
+            INFO_PRINT(F("SEND_PID_DATA: "));
+            INFO_PRINT(times.size());
+            INFO_PRINTLN(F(" samples"));
+        }
+
+    } // namespace commands
+
+    // Init
+
+    void init() {
+        motors::methods::register_source(&output_left, &output_right);
+
+        // No derivative filtering — KF velocity is already smooth
+        controller.d_filter.set_rc(0);
+
+        // Yaw PD defaults for driving straight
+        yaw_controller.kP = 3.0;
+        yaw_controller.kI = 0;
+        yaw_controller.kD = 0.5;
+        yaw_controller.integrator_cap = 0;
+        yaw_controller.integrator_range = 0;
+
+        ble::methods::register_command(PID_START, commands::start);
+        ble::methods::register_command(PID_STOP, commands::stop);
+        ble::methods::register_command(PID_SETPOINT, commands::set_setpoint);
+        ble::methods::register_command(PID_GAINS, commands::set_gains);
+        ble::methods::register_command(PID_PARAMS, commands::set_params);
+        ble::methods::register_command(SEND_PID_DATA, commands::send_data);
+        ble::methods::register_command(
+            ANGLE_PID_GAINS, commands::set_yaw_gains
+        );
+    }
+
+    // Periodic
+
+    void periodic() {
+        methods::update();
+    }
+
+} // namespace pid
