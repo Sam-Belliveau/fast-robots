@@ -1024,6 +1024,10 @@ document.getElementById(
 ).addEventListener("click", () => { wsSend("MapStop", {}); });
 
 document.getElementById(
+    "map-status"
+).addEventListener("click", () => { wsSend("MapStatus", {}); });
+
+document.getElementById(
     "map-data"
 ).addEventListener("click", () => { wsSend("SendMapData", {}); });
 

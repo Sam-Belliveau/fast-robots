@@ -55,6 +55,7 @@ from main_python.commands import (
     MapStop,
     MapParams,
     SendMapData,
+    MapStatus,
 )
 
 ALL_COMMANDS: list[type[BLECommand]] = [
@@ -107,6 +108,7 @@ ALL_COMMANDS: list[type[BLECommand]] = [
     MapStop,
     MapParams,
     SendMapData,
+    MapStatus,
 ]
 
 
