@@ -22,10 +22,10 @@
 
 namespace mapping {
 
-    static constexpr int MAP_BUCKETS = 64;
+    static constexpr int MAP_BUCKETS = 18;
 
     // Configuration
-    int num_steps = 36;            // 36 steps = 10 deg each
+    int num_steps = 18;            // 18 steps = 20 deg each
     int samples_per_step = 10;     // unique fresh ToF samples per step
     float settle_threshold = 5.0f; // deg, PID error considered settled
     unsigned long settle_time_ms =
@@ -117,12 +117,14 @@ namespace mapping {
         }
 
         void update_sampling() {
+            const float rel_yaw = imu::yaw - start_yaw;
+
             if (collected1 < samples_per_step &&
                 tof::reads1 > baseline_reads1) {
                 baseline_reads1 = tof::reads1;
                 const int raw = tof::dist1.size() > 0 ? tof::dist1[0] : -1;
                 if (raw > 0) {
-                    map.update(imu::yaw, (float)raw, angle_std_deg);
+                    map.update(rel_yaw, (float)raw, angle_std_deg);
                     collected1++;
                 }
             }
@@ -133,7 +135,7 @@ namespace mapping {
                 const int raw = tof::dist2.size() > 0 ? tof::dist2[0] : -1;
                 if (raw > 0) {
                     map.update(
-                        imu::yaw + sensor2_offset_deg, (float)raw, angle_std_deg
+                        rel_yaw + sensor2_offset_deg, (float)raw, angle_std_deg
                     );
                     collected2++;
                 }
@@ -249,6 +251,12 @@ namespace mapping {
             req.new_response().end();
         }
 
+        void status(BLERequest &req) {
+            BLEResponse res = req.new_response();
+            res.add((int32_t)(active ? 1 : 0));
+            res.end();
+        }
+
         void send_data(BLERequest &req) {
             BLEResponse res = req.new_response();
             for (int i = 0; i < MAP_BUCKETS; ++i) {
@@ -272,6 +280,7 @@ namespace mapping {
         ble::methods::register_command(MAP_STOP, commands::stop_cmd);
         ble::methods::register_command(MAP_PARAMS, commands::set_params);
         ble::methods::register_command(SEND_MAP_DATA, commands::send_data);
+        ble::methods::register_command(MAP_STATUS, commands::status);
     }
 
     void periodic() {

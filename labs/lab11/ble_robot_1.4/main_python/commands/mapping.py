@@ -15,7 +15,7 @@ class MapBucket(NamedTuple):
 
 @dataclass
 class MapStart(BLECommand[None]):
-    num_steps: int = 36
+    num_steps: int = 18
     cmd_name = "MAP_START"
     def write_params(self, w: PacketWriter) -> None:
         w.write(self.num_steps)
@@ -55,3 +55,11 @@ class SendMapData(BLECommand[list[MapBucket]]):
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[MapBucket]:
         return _chunk(fields, 3, MapBucket)
+
+
+@dataclass
+class MapStatus(BLECommand[bool]):
+    cmd_name = "MAP_STATUS"
+    def write_params(self, w: PacketWriter) -> None: pass
+    def parse_response(self, fields: list[Any]) -> bool:
+        return bool(fields[0])
