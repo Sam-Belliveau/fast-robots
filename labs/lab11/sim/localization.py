@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import inspect
 import time
 import numpy as np
 import math
@@ -309,8 +310,10 @@ class BaseLocalization():
 
     # Execute the rotation behavior to measure observations
     async def get_observation_data(self, rot_vel=120):
-        self.obs_range_data, self.obs_bearing_data = await self.robot.perform_observation_loop(
-            rot_vel)
+        result = self.robot.perform_observation_loop(rot_vel)
+        if inspect.isawaitable(result):
+            result = await result
+        self.obs_range_data, self.obs_bearing_data = result
 
     # Print prior belief statistics (for after prediction step) and plot data in the plotter
     def print_prediction_stats(self, plot_data=True):
