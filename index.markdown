@@ -30,8 +30,8 @@ I'm a senior ECE major at Cornell doing HCI research. This site documents my jou
 - [Lab 8: Stunts!](labs/lab8/)
 - [Lab 9: Mapping](labs/lab9/)
 - [Lab 10: Localization (sim)](labs/lab10/)
+- [Lab 11: Localization (real)](labs/lab11/)
 
 <!--
-- [Lab 11: Localization (real)](labs/lab11/)
 - [Lab 12: Planning and Execution](labs/lab12/)
   -->
