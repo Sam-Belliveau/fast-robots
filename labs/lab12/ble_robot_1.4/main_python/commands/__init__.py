@@ -114,3 +114,7 @@ from .mapping import (
     MapStatus as MapStatus,
     MapBucket as MapBucket,
 )
+from .drive import (
+    DriveUpdate as DriveUpdate,
+    DriveUpdateResponse as DriveUpdateResponse,
+)
