@@ -27,3 +27,14 @@ class SendIMUData(BLECommand[list[IMUSample]]):
     def write_params(self, w: PacketWriter) -> None: pass
     def parse_response(self, fields: list[Any]) -> list[IMUSample]:
         return _chunk(fields, 11, IMUSample)
+
+
+@dataclass
+class SetHeading(BLECommand[None]):
+    """Snap imu::yaw to `heading` (degrees) by adjusting the DMP offset."""
+    heading: float
+    cmd_name = "SET_HEADING"
+    def write_params(self, w: PacketWriter) -> None:
+        w.write(float(self.heading))
+    def parse_response(self, fields: list[Any]) -> None:
+        return None

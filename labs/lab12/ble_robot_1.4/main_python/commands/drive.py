@@ -11,8 +11,10 @@ class DriveUpdateResponse(NamedTuple):
     current_us: int
     tof1_time_us: int
     tof1_dist_mm: int
+    tof1_yaw_deg: float
     tof2_time_us: int
     tof2_dist_mm: int
+    tof2_yaw_deg: float
     yaw_deg: float
 
 

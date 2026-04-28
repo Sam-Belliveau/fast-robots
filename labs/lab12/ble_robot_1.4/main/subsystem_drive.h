@@ -78,21 +78,28 @@ namespace drive {
             // Pull latest raw ToF samples (most recent push lives at index 0).
             int32_t tof1_t = -1, tof2_t = -1;
             int16_t tof1_d = -1, tof2_d = -1;
-            if (tof::dist1.size() > 0) {
+            float tof1_y = imu::yaw;
+            if (tof::dist1.size() > 1) {
                 tof1_t = (int32_t)tof::times1[0];
                 tof1_d = (int16_t)tof::dist1[0];
+                tof1_y = (tof::yaw1[0] + tof::yaw1[1]) * 0.5f;
             }
-            if (tof::dist2.size() > 0) {
+            if (tof::dist2.size() > 1) {
                 tof2_t = (int32_t)tof::times2[0];
                 tof2_d = (int16_t)tof::dist2[0];
             }
+            // Sensor 2 is mounted 90 deg clockwise of sensor 1, so its
+            // bearing in the world frame is tof1_y - 90.
+            float tof2_y = methods::wrap_angle(tof1_y - 90.0f);
 
             BLEResponse res = req.new_response();
             res.add((int32_t)timer::methods::time_us());
             res.add(tof1_t);
             res.add(tof1_d);
+            res.add(tof1_y);
             res.add(tof2_t);
             res.add(tof2_d);
+            res.add(tof2_y);
             res.add(imu::yaw);
             res.end();
         }

@@ -8,6 +8,7 @@
 #include "SparkFun_VL53L1X.h"
 #include "lib_Zip.h"
 #include "subsystem_ble.h"
+#include "subsystem_imu.h"
 #include "subsystem_serial.h"
 
 #define TOF1_XSHUT_PIN D5
@@ -22,9 +23,11 @@ namespace tof {
 
     CircularBuffer<int, 0x10> times1;
     CircularBuffer<int, 0x10> dist1;
+    CircularBuffer<float, 0x10> yaw1;
 
     CircularBuffer<int, 0x10> times2;
     CircularBuffer<int, 0x10> dist2;
+    CircularBuffer<float, 0x10> yaw2;
 
     // Monotonic counters incremented each time a fresh raw reading is
     // pushed. Consumers (e.g. the mapping subsystem) use these to detect
@@ -173,12 +176,14 @@ namespace tof {
             if (0 <= (distance = update(&sensor1, &mode1))) {
                 times1.push(time);
                 dist1.push(distance);
+                yaw1.push(imu::yaw);
                 reads1++;
             }
 
             if (0 <= (distance = update(&sensor2, &mode2))) {
                 times2.push(time);
                 dist2.push(distance);
+                yaw2.push(imu::yaw);
                 reads2++;
             }
 

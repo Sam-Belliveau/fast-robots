@@ -71,6 +71,7 @@ enum CommandTypes {
     SEND_MAP_DATA = 50,
     MAP_STATUS = 51,
     DRIVE_UPDATE = 52,
+    SET_HEADING = 53,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

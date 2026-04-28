@@ -51,6 +51,7 @@ from .core import (
 from .imu import (
     SendIMUData as SendIMUData,
     IMUSample as IMUSample,
+    SetHeading as SetHeading,
 )
 from .tof import (
     SendToFData as SendToFData,

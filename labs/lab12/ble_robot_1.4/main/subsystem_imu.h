@@ -26,7 +26,9 @@ namespace imu {
     bool ok = false;
     bool dmp_ok = false;
 
-    float yaw = 0;          // current DMP yaw in degrees
+    float yaw = 0;          // current DMP yaw in degrees, post-offset
+    float raw_yaw = 0;      // raw quaternion-derived yaw before offset
+    float yaw_offset = 0;   // added to raw_yaw to align with world frame
     bool yaw_valid = false; // true when a new DMP reading arrived
 
     // Orientation from accelerometer Z with hysteresis
@@ -72,7 +74,10 @@ namespace imu {
 
                 float siny_cosp = 2.0f * (q0 * q3 + q1 * q2);
                 float cosy_cosp = 1.0f - 2.0f * (q2 * q2 + q3 * q3);
-                yaw = atan2f(siny_cosp, cosy_cosp) * 180.0f / (float)M_PI;
+                raw_yaw = atan2f(siny_cosp, cosy_cosp) * 180.0f / (float)M_PI;
+                float y = raw_yaw + yaw_offset;
+                y -= 360.0f * roundf(y / 360.0f);
+                yaw = y;
                 yaw_valid = true;
             } else {
                 yaw_valid = false;
@@ -236,6 +241,15 @@ namespace imu {
             INFO_PRINTLN(F(" samples"));
         }
 
+        void set_heading(BLERequest &req) {
+            float desired;
+            BLE_CHECK_READ(req, req.read(desired), "desired");
+            yaw_offset = desired - raw_yaw;
+            float y = raw_yaw + yaw_offset;
+            y -= 360.0f * roundf(y / 360.0f);
+            yaw = y;
+        }
+
     } // namespace commands
 
     // Init
@@ -258,6 +272,7 @@ namespace imu {
         methods::init_dmp();
 
         ble::methods::register_command(SEND_IMU_DATA, commands::send_data);
+        ble::methods::register_command(SET_HEADING, commands::set_heading);
     }
 
     // Periodic
