@@ -57,17 +57,17 @@ robot:
 
     # Discrete cell sizes
     # It is recommended that you do not change these values, unless you truly know what you are doing
-    cell_size_x: 0.3048
-    cell_size_y: 0.3048 
-    cell_size_a: 20
+    cell_size_x: 0.1016
+    cell_size_y: 0.1016
+    cell_size_a: 10
 
     # Number of cells in each dimensions(x,y,a)
     # Calculated based on the range divided by the cell size in each dimension
     # Ex: max_cells_x = (max_x-min_x)/cell_size_x
     # Must be integers
-    max_cells_x: 12  # Total number of grid cells in the x direction
-    max_cells_y: 9   # Total number of grid cells in the y direction
-    max_cells_a: 18  # Total number of grid cells in the a direction
+    max_cells_x: 36  # Total number of grid cells in the x direction
+    max_cells_y: 27   # Total number of grid cells in the y direction
+    max_cells_a: 36  # Total number of grid cells in the a direction
 
     # Number of observations during the rotation behavior
     # It is also the number of observations made in each discrete cell
@@ -84,4 +84,4 @@ robot:
     odom_rot_sigma: 15      # Should be greater than half the cell size
     
     # Sensor noise
-    sensor_sigma: 0.1
+    sensor_sigma: 0.25

@@ -26,13 +26,19 @@ namespace mapping {
 
     // Configuration
     int num_steps = 18;            // 18 steps = 20 deg each
-    int samples_per_step = 10;     // unique fresh ToF samples per step
+    int samples_per_step = 25;     // unique fresh ToF samples per step
     float settle_threshold = 5.0f; // deg, PID error considered settled
     unsigned long settle_time_ms =
         500; // ms held under threshold before sampling
-    unsigned long step_timeout_ms = 5000; // ms max per phase
+    unsigned long step_timeout_ms = 8000; // ms max per phase
     float sensor2_offset_deg = -90.0f;    // sensor 2 beam offset (clockwise)
     float angle_std_deg = 10.0f;          // Gaussian kernel std fed to AngleMap
+
+    // Radial mounting offsets from rotation center, in mm. Each sensor reads
+    // the distance from its lens to a wall, so true distance from the robot
+    // origin along that beam is reading + radial offset.
+    static constexpr float SENSOR1_OFFSET_MM = 70.0f; // front sensor
+    static constexpr float SENSOR2_OFFSET_MM = 31.0f; // side sensor
 
     // State
     AngleMap<MAP_BUCKETS> map;
@@ -58,6 +64,7 @@ namespace mapping {
                 start_yaw + (float)current_step * (360.0f / (float)num_steps);
             angle_pid::setpoint = target;
             angle_pid::controller.reset();
+            angle_pid::active = true;
             phase = TURNING;
             phase_start_ms = millis();
             settled = false;
@@ -70,8 +77,12 @@ namespace mapping {
             baseline_reads1 = tof::reads1 + 1;
             baseline_reads2 = tof::reads2 + 1;
             phase_start_ms = millis();
-            // Hold position: angle PID keeps running so the robot does not
-            // drift while we wait for fresh ToF samples.
+            // Cut motor drive so the chassis is mechanically still during
+            // sampling; otherwise PID corrections keep nudging the yaw and
+            // smear bearings across buckets.
+            angle_pid::active = false;
+            angle_pid::output_left = 0.0f;
+            angle_pid::output_right = 0.0f;
         }
 
         void finish() {
@@ -124,7 +135,8 @@ namespace mapping {
                 baseline_reads1 = tof::reads1;
                 const int raw = tof::dist1.size() > 0 ? tof::dist1[0] : -1;
                 if (raw > 0) {
-                    map.update(rel_yaw, (float)raw, angle_std_deg);
+                    const float dist = (float)raw + SENSOR1_OFFSET_MM;
+                    map.update(rel_yaw, dist, angle_std_deg);
                     collected1++;
                 }
             }
@@ -134,8 +146,9 @@ namespace mapping {
                 baseline_reads2 = tof::reads2;
                 const int raw = tof::dist2.size() > 0 ? tof::dist2[0] : -1;
                 if (raw > 0) {
+                    const float dist = (float)raw + SENSOR2_OFFSET_MM;
                     map.update(
-                        rel_yaw + sensor2_offset_deg, (float)raw, angle_std_deg
+                        rel_yaw + sensor2_offset_deg, dist, angle_std_deg
                     );
                     collected2++;
                 }
