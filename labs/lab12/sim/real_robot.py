@@ -21,9 +21,18 @@ class RealRobot:
         self.timeout_s = timeout_s
 
     async def update(
-        self, target_speed: float, target_heading: float
+        self,
+        target_speed: float,
+        target_heading: float,
+        long_mode_1: bool = True,
+        long_mode_2: bool = True,
     ) -> DriveUpdateResponse:
         return await self._conn.execute(
-            DriveUpdate(float(target_speed), float(target_heading)),
+            DriveUpdate(
+                float(target_speed),
+                float(target_heading),
+                bool(long_mode_1),
+                bool(long_mode_2),
+            ),
             timeout=self.timeout_s,
         )

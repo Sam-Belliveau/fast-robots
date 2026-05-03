@@ -1,14 +1,13 @@
 #pragma once
 
-template<class T, int Size>
-struct CircularBuffer {
+template <class T, int Size> struct CircularBuffer {
     constexpr static int Mask = Size - 1;
 
-    T data[Size] = { T(0) };
+    T data[Size] = {T(0)};
     int head = 0;
     int tail = 0;
 
-    void push(const T& value) {
+    void push(const T &value) {
         data[head & Mask] = value;
         head = (head + 1) & Mask;
         if (head == tail) {
@@ -16,7 +15,7 @@ struct CircularBuffer {
         }
     }
 
-    bool pop(T& value) {
+    bool pop(T &value) {
         if (head == tail) {
             return false;
         } else {
@@ -44,16 +43,16 @@ struct CircularBuffer {
         return head == tail;
     }
 
-    const T& top() const {
+    const T &top() const {
         return data[tail & Mask];
     }
 
-    const T& bottom() const {
+    const T &bottom() const {
         return data[(head - 1) & Mask];
     }
 
     // Index from head: 0 = most recent, 1 = second most recent, etc.
-    const T& operator[](int i) const {
+    const T &operator[](int i) const {
         return data[(head - 1 - i) & Mask];
     }
 
@@ -62,18 +61,29 @@ struct CircularBuffer {
     }
 
     struct Iterator {
-        const T* data;
+        const T *data;
         int pos;
 
-        const T& operator*() const { return data[pos & Mask]; }
-        Iterator& operator++() { pos = (pos + 1) & Mask; return *this; }
-        Iterator& operator--() { pos = (pos - 1) & Mask; return *this; }
-        bool operator!=(const Iterator& o) const { return pos != o.pos; }
+        const T &operator*() const {
+            return data[pos & Mask];
+        }
+        Iterator &operator++() {
+            pos = (pos + 1) & Mask;
+            return *this;
+        }
+        Iterator &operator--() {
+            pos = (pos - 1) & Mask;
+            return *this;
+        }
+        bool operator!=(const Iterator &o) const {
+            return pos != o.pos;
+        }
     };
 
-    Iterator begin() const { return { data, tail }; }
-    Iterator end()   const { return { data, head }; }
+    Iterator begin() const {
+        return {data, tail};
+    }
+    Iterator end() const {
+        return {data, head};
+    }
 };
-
-
-

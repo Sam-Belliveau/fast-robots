@@ -53,6 +53,9 @@ class DriveUpdateResponse(NamedTuple):
     tof2_dist_mm: int
     tof2_yaw_deg: float
     yaw_deg: float
+    dx_pwm_s: float
+    dy_pwm_s: float
+    abs_pwm_s: float
 
 
 def _wrap_deg(a: float) -> float:
@@ -88,7 +91,11 @@ class SimParams:
     physics_dt_s: float         # internal integration step
     ble_rtt_s: float            # one update() == one BLE rtt
     ble_rtt_jitter_s: float     # gaussian sigma on rtt
-    rng_seed: int | None = None
+    # Heading-error speed weighting, matching the firmware
+    # subsystem_drive::ALIGN_TOL_DEG. v *= exp(-(err/align_tol_deg)^2)
+    # so the bot does not drive forward while badly mis-aligned.
+    align_tol_deg: float
+    rng_seed: int | None
 
 
 class SimRobot:
@@ -128,6 +135,12 @@ class SimRobot:
         # Sim clock (microseconds of simulated time)
         self.t_us: int = 0
 
+        # Robot-side odometry integrator (PWM*seconds), reset on each
+        # update() return so the host gets per-RTT displacement.
+        self._dx_pwm_s: float = 0.0
+        self._dy_pwm_s: float = 0.0
+        self._abs_pwm_s: float = 0.0
+
         # Latest ToF sample held by the on-board buffer.
         self._latest_tof_t_us: int = 0
         self._latest_tof1_mm: int = 0
@@ -152,7 +165,13 @@ class SimRobot:
         """Simulated wall-clock seconds since construction."""
         return self.t_us * 1e-6
 
-    async def update(self, target_speed: float, target_heading: float) -> DriveUpdateResponse:
+    async def update(
+        self,
+        target_speed: float,
+        target_heading: float,
+        long_mode_1: bool = True,
+        long_mode_2: bool = True,
+    ) -> DriveUpdateResponse:
         """Advance one BLE round-trip and return the latest cached ToF.
 
         Async to match `RealRobot.update`; the body itself is purely
@@ -178,7 +197,7 @@ class SimRobot:
                 self._next_tof_us = self._schedule_next_tof(self.t_us)
 
         yaw_meas = _wrap_deg(degrees(self.theta) + self.heading_bias_deg)
-        return DriveUpdateResponse(
+        resp = DriveUpdateResponse(
             current_us=self.t_us,
             tof1_time_us=self._latest_tof_t_us,
             tof1_dist_mm=self._latest_tof1_mm,
@@ -187,7 +206,14 @@ class SimRobot:
             tof2_dist_mm=self._latest_tof2_mm,
             tof2_yaw_deg=float(self._latest_tof2_yaw_deg),
             yaw_deg=float(yaw_meas),
+            dx_pwm_s=float(self._dx_pwm_s),
+            dy_pwm_s=float(self._dy_pwm_s),
+            abs_pwm_s=float(self._abs_pwm_s),
         )
+        self._dx_pwm_s = 0.0
+        self._dy_pwm_s = 0.0
+        self._abs_pwm_s = 0.0
+        return resp
 
     # ----- internals -----
 
@@ -196,17 +222,29 @@ class SimRobot:
         p = self.params
 
         # Velocity: first-order lag toward PWM-mapped target + noise.
-        v_target = float(target_speed) * p.pwm_to_vel_mm_s
+        # Mirror the firmware's heading-error Gaussian rolloff against
+        # the live yaw so the simulator does not creep forward while
+        # badly mis-aligned.
+        target_rad = radians(_wrap_deg(float(target_heading)))
+        align_err = (target_rad - self.theta + pi) % (2 * pi) - pi
+        a = degrees(align_err) / p.align_tol_deg
+        speed_factor = float(np.exp(-a * a))
+        forward_pwm = float(target_speed) * speed_factor
+        # Mirror firmware odometry integrator: post-rolloff PWM against
+        # noisy yaw measurement (what the on-board IMU would report).
+        yaw_meas_rad = self.theta + radians(self.heading_bias_deg)
+        self._dx_pwm_s += forward_pwm * cos(yaw_meas_rad) * dt
+        self._dy_pwm_s += forward_pwm * sin(yaw_meas_rad) * dt
+        self._abs_pwm_s += abs(forward_pwm) * dt
+        v_target = forward_pwm * p.pwm_to_vel_mm_s
         v_target = float(np.clip(v_target, -p.max_vel_mm_s, p.max_vel_mm_s))
         alpha_v = 1.0 - np.exp(-dt / p.vel_tau_s)
         self.v_mm_s += (v_target - self.v_mm_s) * alpha_v
         self.v_mm_s += self.rng.normal(0.0, p.vel_sigma_mm_s) * np.sqrt(dt)
 
         # Heading: exponential approach with rate cap, plus jitter and bias.
-        target = radians(_wrap_deg(float(target_heading)))
-        err = (target - self.theta + pi) % (2 * pi) - pi
         alpha_h = 1.0 - np.exp(-dt / p.heading_tau_s)
-        d_theta = err * alpha_h
+        d_theta = align_err * alpha_h
         max_step = radians(p.yaw_rate_max_dps) * dt
         d_theta = float(np.clip(d_theta, -max_step, max_step))
         self.theta += d_theta

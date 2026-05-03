@@ -43,13 +43,10 @@ namespace tof {
     CircularBuffer<int, 0x100> plot_extrap2;
 
     enum Mode { SHORT = 0, LONG = 1 };
-    Mode mode1 = SHORT;
-    Mode mode2 = SHORT;
+    Mode mode1 = LONG;
+    Mode mode2 = LONG;
 
-    static constexpr int AUTO_SWITCH_UP = 1200;
-    static constexpr int AUTO_SWITCH_DOWN = 900;
-
-    static constexpr int MAX_SHORT_DISTANCE = 2000;
+    static constexpr int MAX_SHORT_DISTANCE = 1300;
     static constexpr int MAX_LONG_DISTANCE = 4000;
 
     // Methods
@@ -134,6 +131,26 @@ namespace tof {
             return time_to_crash(times2, dist2);
         }
 
+        static void set_one(SFEVL53L1X &s, Mode &cur, bool long_mode) {
+            Mode desired = long_mode ? LONG : SHORT;
+            if (cur == desired)
+                return;
+            s.stopRanging();
+            if (long_mode)
+                s.setDistanceModeLong();
+            else
+                s.setDistanceModeShort();
+            s.startRanging();
+            cur = desired;
+        }
+
+        void set_long_mode_1(bool long_mode) {
+            set_one(sensor1, mode1, long_mode);
+        }
+        void set_long_mode_2(bool long_mode) {
+            set_one(sensor2, mode2, long_mode);
+        }
+
         int update(SFEVL53L1X *sensor, Mode *sensor_mode) {
             if (!sensor->checkForDataReady())
                 return -1;
@@ -141,30 +158,10 @@ namespace tof {
             int distance = sensor->getDistance();
             sensor->clearInterrupt();
 
-            if (distance <= 0) {
-                switch (*sensor_mode) {
-                case SHORT:
-                    distance = MAX_SHORT_DISTANCE;
-                    break;
-                case LONG:
-                    distance = MAX_LONG_DISTANCE;
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            if (AUTO_SWITCH_UP < distance && *sensor_mode != LONG) {
-                sensor->stopRanging();
-                sensor->setDistanceModeLong();
-                *sensor_mode = LONG;
-                sensor->startRanging();
-            } else if (distance < AUTO_SWITCH_DOWN && *sensor_mode != SHORT) {
-                sensor->stopRanging();
-                sensor->setDistanceModeShort();
-                *sensor_mode = SHORT;
-                sensor->startRanging();
-            }
+            if (distance <= 0)
+                distance = (*sensor_mode == LONG)
+                    ? MAX_LONG_DISTANCE
+                    : MAX_SHORT_DISTANCE;
 
             return distance;
         }
@@ -338,8 +335,8 @@ namespace tof {
 
         INFO_PRINTLN(F("ToF sensor 1 online!"));
 
-        sensor1.setDistanceModeShort();
-        sensor2.setDistanceModeShort();
+        sensor1.setDistanceModeLong();
+        sensor2.setDistanceModeLong();
         sensor1.startRanging();
         sensor2.startRanging();
 

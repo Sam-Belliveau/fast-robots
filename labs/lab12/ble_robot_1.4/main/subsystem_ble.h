@@ -72,6 +72,7 @@ enum CommandTypes {
     MAP_STATUS = 51,
     DRIVE_UPDATE = 52,
     SET_HEADING = 53,
+    DRIVE_SET_ALIGN_TOL = 54,
 };
 
 typedef void (*CommandHandler)(BLERequest &);

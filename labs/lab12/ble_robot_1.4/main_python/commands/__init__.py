@@ -118,4 +118,5 @@ from .mapping import (
 from .drive import (
     DriveUpdate as DriveUpdate,
     DriveUpdateResponse as DriveUpdateResponse,
+    DriveSetAlignTol as DriveSetAlignTol,
 )

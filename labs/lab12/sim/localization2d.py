@@ -106,6 +106,11 @@ class Localization2D:
         self.valid_mask = self._build_valid_mask()
         self.bel = self.valid_mask / self.valid_mask.sum()
 
+        # Track last applied ToF timestamps so the host only folds in a
+        # measurement when the firmware hands us a fresh sample.
+        self.last_tof1_time_us: int = -1
+        self.last_tof2_time_us: int = -1
+
     # ---- validity mask ----
 
     def _build_valid_mask(self) -> np.ndarray:
@@ -137,6 +142,33 @@ class Localization2D:
 
     def init_uniform(self):
         self.bel = self.valid_mask / self.valid_mask.sum()
+
+    def set_motion_params(
+        self,
+        *,
+        pwm_to_vel_mm_s: float | None = None,
+        motion_long_sigma_per_m: float | None = None,
+        motion_long_sigma_per_pwm: float | None = None,
+        motion_base_sigma_m: float | None = None,
+    ):
+        """Re-tune the predict-step motion model at runtime.
+
+        Pass only the knobs you want to change; the rest stay put. Use
+        from a notebook cell to dial in the predict spread without
+        rebuilding the filter or restarting the kernel.
+        """
+        if pwm_to_vel_mm_s is not None:
+            self.params.pwm_to_vel_mm_s = pwm_to_vel_mm_s
+        if motion_long_sigma_per_m is not None:
+            self.params.motion_long_sigma_per_m = motion_long_sigma_per_m
+        if motion_long_sigma_per_pwm is not None:
+            self.params.motion_long_sigma_per_pwm = motion_long_sigma_per_pwm
+        if motion_base_sigma_m is not None:
+            self.params.motion_base_sigma_m = motion_base_sigma_m
+
+    def set_sensor_sigma_mm(self, sensor_sigma_mm: float):
+        """Re-tune the per-reading sensor sigma at runtime."""
+        self.params.sensor_sigma_mm = sensor_sigma_mm
 
     def init_at(self, x: float, y: float, sigma_m: float = 0.10):
         X, Y = np.meshgrid(self.xs, self.ys, indexing="ij")
@@ -192,6 +224,54 @@ class Localization2D:
 
         self._set_gaussian(mu_new, cov_new)
 
+    def predict_displacement(
+        self,
+        dx_pwm_s: float,
+        dy_pwm_s: float,
+        abs_pwm_s: float,
+    ):
+        """Predict from a robot-side integrated PWM*seconds displacement.
+
+        Mean motion = (dx_pwm_s, dy_pwm_s) * pwm_to_vel_mm_s, in mm.
+        Direction comes from the integrator (so mis-aligned ticks are
+        already weighted), not from a single sampled yaw. Noise scales
+        with the absolute integrated PWM-seconds, so high-rolloff ticks
+        don't inflate covariance.
+        """
+        if not (
+            math.isfinite(dx_pwm_s)
+            and math.isfinite(dy_pwm_s)
+            and math.isfinite(abs_pwm_s)
+        ):
+            return
+
+        mu_post, cov_post = self.mean_cov_xy()
+
+        scale = self.params.pwm_to_vel_mm_s / 1000.0  # PWM*s -> meters
+        dx_m = dx_pwm_s * scale
+        dy_m = dy_pwm_s * scale
+        mu_motion = np.array([dx_m, dy_m])
+
+        dist_m = math.hypot(dx_m, dy_m)
+        pwm_dt = abs(abs_pwm_s)
+        base_var = self.params.motion_base_sigma_m**2
+        sigma_long = math.sqrt(
+            base_var
+            + (self.params.motion_long_sigma_per_m * dist_m) ** 2
+            + (self.params.motion_long_sigma_per_pwm * pwm_dt) ** 2
+        )
+        sigma_lat = self.params.motion_base_sigma_m
+        if dist_m > 1e-9:
+            c, s = dx_m / dist_m, dy_m / dist_m
+        else:
+            c, s = 1.0, 0.0
+        R = np.array([[c, -s], [s, c]])
+        cov_motion = R @ np.diag([sigma_long**2, sigma_lat**2]) @ R.T
+
+        mu_new = mu_post + mu_motion
+        cov_new = 0.5 * (cov_post + cov_motion)
+        self._set_gaussian(mu_new, cov_new)
+
     def _set_gaussian(self, mu: np.ndarray, cov: np.ndarray):
         """Replace belief with a single 2D Gaussian on the grid."""
         a, b = float(cov[0, 0]), float(cov[0, 1])
@@ -233,6 +313,19 @@ class Localization2D:
         s = b.sum()
         if s > 0:
             self.bel = b / s
+
+    def expected_distance_mm(self, world_bearing_deg: float) -> float:
+        """Belief-mean expected ToF distance along the given world bearing.
+
+        Uses the per-cell ray-cache mean at the cell closest to the
+        current belief mean. Used to drive ToF distance-mode hysteresis
+        on the firmware without the robot guessing.
+        """
+        bx, by = self.mean_xy()
+        ix = int(np.clip(np.searchsorted(self.xs, bx), 0, len(self.xs) - 1))
+        iy = int(np.clip(np.searchsorted(self.ys, by), 0, len(self.ys) - 1))
+        mean_mm, _ = self.cache.lookup(world_bearing_deg)
+        return float(mean_mm[ix, iy])
 
     # ---- accessors ----
 

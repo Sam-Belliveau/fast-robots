@@ -9,7 +9,8 @@ on the belief argmax by passing the relevant pose into `command()`.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,16 +23,58 @@ from sim_robot import DriveUpdateResponse
 
 @dataclass
 class WaypointController:
-    """Sequentially aims at each waypoint; advances inside stop radius."""
+    """Sequentially aims at each waypoint; advances inside stop radius.
+
+    All knobs are required and must come from `config/world.yaml` via
+    `world.load_world()`; there are no in-class defaults so a missing
+    YAML key surfaces immediately instead of silently falling back.
+    """
 
     path: list[tuple[float, float]]
-    stop_radius_mm: float = 250.0
-    stop_flip_radius_mm: float = 250.0  # freeze flip decision inside this radius
-    speed_pwm: float = 40.0            # ~500 mm/s at 12.5 mm/s per PWM
-    align_tol_deg: float = 10.0        # within this, drive and re-evaluate flip
-    idx: int = 1                       # path[0] is the start pose
-    flip: bool = False                 # True = drive backwards toward the waypoint
-    log: list[int] = field(default_factory=list)
+    stop_radius_mm: float
+    stop_flip_radius_mm: float
+    max_speed_pwm: float
+    min_speed_pwm: float
+    max_speed_distance_mm: float
+    align_tol_deg: float
+    position_rc_s: float
+    tof_long_threshold_mm: float
+    tof_short_threshold_mm: float
+
+    def __post_init__(self):
+        # Runtime state, not configuration: starts fresh on construction.
+        self.idx: int = 1               # path[0] is the start pose
+        self.flip: bool = False         # True = drive backwards toward the waypoint
+        self.log: list[int] = []
+        # ToF distance-mode hysteresis state, seeded to LONG so the first
+        # DriveUpdate pushes the safer (longer-range) mode.
+        self.long_mode_1: bool = True
+        self.long_mode_2: bool = True
+        self.filt_x: float | None = None
+        self.filt_y: float | None = None
+        self._last_filt_t: float = 0.0
+
+    def filtered(self, x: float, y: float) -> tuple[float, float]:
+        """Exponential low-pass on the planning position, RC = position_rc_s.
+
+        Uses wall-clock dt between successive calls, so it works the
+        same against the simulator and the real robot. Disable by
+        setting position_rc_s = 0.
+        """
+        if self.position_rc_s <= 0.0 or self.filt_x is None:
+            self.filt_x, self.filt_y = x, y
+            self._last_filt_t = time.monotonic()
+            return x, y
+        now = time.monotonic()
+        dt = max(1e-3, now - self._last_filt_t)
+        self._last_filt_t = now
+        alpha = 1.0 - math.exp(-dt / self.position_rc_s)
+        fx: float = self.filt_x  # type: ignore[assignment]
+        fy: float = self.filt_y  # type: ignore[assignment]
+        fx += (x - fx) * alpha
+        fy += (y - fy) * alpha
+        self.filt_x, self.filt_y = fx, fy
+        return fx, fy
 
     @property
     def done(self) -> bool:
@@ -45,16 +88,23 @@ class WaypointController:
         """Return (speed_pwm, target_heading_deg) for the next BLE call.
 
         Advances the waypoint index automatically when within the stop
-        radius. Returns (0, last_heading) once the path is finished.
+        radius. Speed ramps linearly with distance: `min_speed_pwm` at
+        `stop_radius_mm`, `max_speed_pwm` at or beyond
+        `max_speed_distance_mm`. Returns (0, 0) once the path is finished.
         """
         while not self.done:
             wx, wy = self.path[self.idx]
             dx, dy = wx - x, wy - y
-            if math.hypot(dx, dy) * 1000.0 < self.stop_radius_mm:
+            dist_mm = math.hypot(dx, dy) * 1000.0
+            if dist_mm < self.stop_radius_mm:
                 self.log.append(self.idx)
                 self.idx += 1
                 continue
-            return self.speed_pwm, math.degrees(math.atan2(dy, dx))
+            span = max(1e-6, self.max_speed_distance_mm - self.stop_radius_mm)
+            t = (dist_mm - self.stop_radius_mm) / span
+            t = max(0.0, min(1.0, t))
+            speed = self.min_speed_pwm + t * (self.max_speed_pwm - self.min_speed_pwm)
+            return speed, math.degrees(math.atan2(dy, dx))
         return 0.0, 0.0
 
 
@@ -90,6 +140,7 @@ class BeliefPlot:
         self.bel_trail, = self.ax.plot([], [], "r-", lw=1.0, alpha=0.7)
         self.gt_pt,  = self.ax.plot([], [], "go", ms=10, label="ground truth")
         self.bel_pt, = self.ax.plot([], [], "rx", ms=12, mew=3, label="belief mean")
+        self.filt_pt, = self.ax.plot([], [], "y+", ms=14, mew=3, label="planner pos (filtered)")
         self._gt_xs:  list[float] = []
         self._gt_ys:  list[float] = []
         self._bel_xs: list[float] = []
@@ -109,6 +160,7 @@ class BeliefPlot:
         gt_xy: tuple[float, float] | None,
         resp: DriveUpdateResponse,
         title: str = "",
+        filtered_xy: tuple[float, float] | None = None,
     ):
         """Refresh all artists. Pass gt_xy=None on the real robot
         (no ground truth) -- ToF rays are then drawn from the belief
@@ -120,6 +172,9 @@ class BeliefPlot:
         self._bel_xs.append(bx); self._bel_ys.append(by)
         self.bel_trail.set_data(self._bel_xs, self._bel_ys)
         self.bel_pt.set_data([bx], [by])
+
+        if filtered_xy is not None:
+            self.filt_pt.set_data([filtered_xy[0]], [filtered_xy[1]])
 
         if gt_xy is None:
             ox, oy = bx, by                # rays anchored at belief mean
@@ -152,20 +207,30 @@ class BeliefPlot:
 def filter_step(
     loc: Localization2D,
     resp: DriveUpdateResponse,
-    speed_pwm: float,
-    dt_s: float,
 ):
     """One Bayes filter cycle from a DriveUpdate response.
 
-    Predict places a fresh Gaussian at (belief mean + v*dt) using
-    LocParams.pwm_to_vel_mm_s; update folds in both ToF readings.
-    Pure -- works the same against SimRobot or a real BLE response.
+    Predict always runs from the robot-side integrated displacement.
+    The sensor update only fires for ToF samples whose timestamp has
+    advanced since the previous filter step; otherwise the firmware
+    is just re-handing us the same cached reading and folding it in
+    twice would over-sharpen the belief.
     """
-    loc.predict(heading_deg=resp.yaw_deg, speed_pwm=speed_pwm, dt_s=dt_s)
-    if resp.tof1_dist_mm > 0:
+    loc.predict_displacement(resp.dx_pwm_s, resp.dy_pwm_s, resp.abs_pwm_s)
+    if (
+        resp.tof1_dist_mm > 0
+        and math.isfinite(resp.tof1_yaw_deg)
+        and resp.tof1_time_us != loc.last_tof1_time_us
+    ):
         loc.update(resp.tof1_yaw_deg, float(resp.tof1_dist_mm))
-    if resp.tof2_dist_mm > 0:
+        loc.last_tof1_time_us = resp.tof1_time_us
+    if (
+        resp.tof2_dist_mm > 0
+        and math.isfinite(resp.tof2_yaw_deg)
+        and resp.tof2_time_us != loc.last_tof2_time_us
+    ):
         loc.update(resp.tof2_yaw_deg, float(resp.tof2_dist_mm))
+        loc.last_tof2_time_us = resp.tof2_time_us
 
 
 # ---------------------------- one BLE step --------------------------
@@ -194,10 +259,15 @@ async def step_once(
     Gaussian in heading error with width `align_tol_deg`.
     """
     if use_belief:
-        x, y = loc.mean_xy()
+        raw_x, raw_y = loc.mean_xy()
     else:
         gx, gy, _ = robot.pose
-        x, y = gx, gy
+        raw_x, raw_y = gx, gy
+
+    # Low-pass the planning position so noisy belief jitter does not
+    # induce stuttery target bearings or flip flicker. Visualization and
+    # the localization filter still operate on the raw mean.
+    x, y = controller.filtered(raw_x, raw_y)
 
     max_speed, target_dir = controller.command(x, y)
     wp = controller.current_waypoint
@@ -209,13 +279,35 @@ async def step_once(
             controller.flip = not controller.flip
 
     target_heading = (target_dir + 180.0) if controller.flip else target_dir
-    err = ((target_heading - last_yaw_deg + 180.0) % 360.0) - 180.0
-
-    speed_factor = math.exp(-(err / controller.align_tol_deg) ** 2)
     signed_speed = -max_speed if controller.flip else max_speed
-    speed = signed_speed * speed_factor
 
-    resp = await robot.update(target_speed=speed, target_heading=target_heading)
-    dt_s = max(1e-3, (resp.current_us - last_t_us) * 1e-6)
-    filter_step(loc, resp, speed, dt_s)
+    # ToF mode hysteresis: pick LONG when the predicted distance along
+    # each sensor's bearing crosses the high threshold, drop to SHORT
+    # only when it falls below the low threshold. Sensor 2 sits 90 deg
+    # clockwise of sensor 1, matching subsystem_drive::update_cmd.
+    bearing1 = last_yaw_deg
+    bearing2 = last_yaw_deg - 90.0
+    exp1 = loc.expected_distance_mm(bearing1)
+    exp2 = loc.expected_distance_mm(bearing2)
+    if controller.long_mode_1 and exp1 < controller.tof_short_threshold_mm:
+        controller.long_mode_1 = False
+    elif not controller.long_mode_1 and exp1 > controller.tof_long_threshold_mm:
+        controller.long_mode_1 = True
+    if controller.long_mode_2 and exp2 < controller.tof_short_threshold_mm:
+        controller.long_mode_2 = False
+    elif not controller.long_mode_2 and exp2 > controller.tof_long_threshold_mm:
+        controller.long_mode_2 = True
+
+    # Heading-error Gaussian weighting now lives on the robot
+    # (subsystem_drive::ALIGN_TOL_DEG) so it tracks live yaw with no BLE
+    # round-trip latency. Send the unweighted signed speed.
+    resp = await robot.update(
+        target_speed=signed_speed,
+        target_heading=target_heading,
+        long_mode_1=controller.long_mode_1,
+        long_mode_2=controller.long_mode_2,
+    )
+    # Predict from the robot-side integrated PWM*s displacement; no
+    # speed_factor or dt approximation needed on the host.
+    filter_step(loc, resp)
     return resp, resp.current_us
