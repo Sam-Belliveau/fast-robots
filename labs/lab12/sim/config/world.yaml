@@ -85,7 +85,7 @@ controller:
   # next one (mm). Lower = robot must drive closer before moving on.
   stop_radius_mm: 96.0
   # Forward drive PWM when aligned with the target bearing.
-  speed_pwm: 100.0
+  speed_pwm: 50.0
   # Heading error tolerance for "aligned" -- below this we drive,
   # and we re-evaluate the flip decision.
   align_tol_deg: 20.0

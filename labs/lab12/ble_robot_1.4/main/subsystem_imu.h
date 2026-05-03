@@ -248,6 +248,7 @@ namespace imu {
             float y = raw_yaw + yaw_offset;
             y -= 360.0f * roundf(y / 360.0f);
             yaw = y;
+            req.new_response().end();
         }
 
     } // namespace commands

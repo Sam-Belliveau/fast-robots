@@ -32,8 +32,8 @@ namespace motors {
     constexpr float motor_rc = 0.001f; // seconds
     constexpr float motor_alpha = timer::methods::alpha(motor_rc);
 
-    DeSticker desticker_left(120, 160);
-    DeSticker desticker_right(80, 120);
+    DeSticker desticker_left(40, 80);
+    DeSticker desticker_right(40, 80);
 
     // Source registration: each source provides pointers to its output pair.
     static constexpr int MAX_SOURCES = 16;
