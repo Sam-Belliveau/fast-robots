@@ -25,7 +25,7 @@ def load_world(path: str | Path = DEFAULT_CONFIG):
     bounds      : (min_x, max_x, min_y, max_y), meters.
     loc_params  : LocParams populated from the `localization:` section.
     sim_params  : SimParams populated from the `simulation:` section.
-    ctl_kwargs  : dict of WaypointController fields from `controller:`.
+    ctl_kwargs  : dict of SplineController fields from `controller:`.
     """
     cfg = yaml.safe_load(Path(path).read_text())
 

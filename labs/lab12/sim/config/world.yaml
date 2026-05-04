@@ -71,7 +71,7 @@ localization:
   # PWM -> mm/s conversion used to project velocity from the
   # commanded speed. Calibrate against the actual step response
   # (~200 PWM -> ~2500 mm/s -> 12.5 mm/s per PWM).
-  pwm_to_vel_mm_s: 6.0
+  pwm_to_vel_mm_s: 8.0
 
   # Body-frame angles of the two ToF sensors.
   tof_sensor_angles_deg: [0.0, -90.0]
@@ -98,16 +98,30 @@ controller:
   # Low-pass RC (seconds) on the planning position. The belief mean is
   # jittery; smoothing here de-stutters the target bearing and the flip
   # decision. Set to 0 to disable.
-  position_rc_s: 0.1
+  position_rc_s: 0.01 
   # ToF distance-mode hysteresis (mm). Switch a sensor to LONG when the
   # belief-mean expected distance crosses tof_long_threshold_mm and back
   # to SHORT only when it falls below tof_short_threshold_mm.
   tof_long_threshold_mm: 1200.0
   tof_short_threshold_mm: 900.0
+  # Spline path-following (SplineController) knobs. The spline is the
+  # cubic-spline interpolant of `path`, arclength-parameterized in m.
+  # look_ahead_m: pure-pursuit look-ahead from the path-projection point.
+  # advance_window_m: only consider passes inside [s_prog, s_prog+window].
+  # wall_clearance_m: dynamic look-ahead is shortened so the targeted
+  #   spline segment never gets within this distance of any wall.
+  # spline_sample_step_m: dense-sample spacing along arclength.
+  # s_prog_backoff_m: monotone progress lags the weighted target by this
+  #   amount so a transient belief swing cannot leap past a sharp curve.
+  look_ahead_m: 0.1
+  advance_window_m: 0.20
+  wall_clearance_m: 0.001
+  spline_sample_step_m: 0.001
+  s_prog_backoff_m: 0.05
 
 simulation:
   # Drivetrain
-  pwm_to_vel_mm_s: 10.0
+  pwm_to_vel_mm_s: 8.0
   vel_tau_s: 0.30
   max_vel_mm_s: 3500.0
   # Heading PID model
@@ -122,12 +136,9 @@ simulation:
   heading_bias_sigma_deg: 3.0
   heading_bias_tau_s:     120.0
   heading_step_sigma_deg: 2.0
-  # Heading-error speed weighting; mirrors firmware ALIGN_TOL_DEG and
-  # controller.align_tol_deg. Keep all three in sync.
-  align_tol_deg: 20.0
   # ToF sensor model
   tof_sigma_mm: 20.0
-  tof_max_mm: 2390.0
+  tof_max_mm: 4000.0
   tof1_angle_deg: 0.0
   tof2_angle_deg: -90.0
   tof_rate_hz: 50.0

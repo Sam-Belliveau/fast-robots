@@ -91,10 +91,6 @@ class SimParams:
     physics_dt_s: float         # internal integration step
     ble_rtt_s: float            # one update() == one BLE rtt
     ble_rtt_jitter_s: float     # gaussian sigma on rtt
-    # Heading-error speed weighting, matching the firmware
-    # subsystem_drive::ALIGN_TOL_DEG. v *= exp(-(err/align_tol_deg)^2)
-    # so the bot does not drive forward while badly mis-aligned.
-    align_tol_deg: float
     rng_seed: int | None
 
 
@@ -171,11 +167,14 @@ class SimRobot:
         target_heading: float,
         long_mode_1: bool = True,
         long_mode_2: bool = True,
+        align_tol_deg: float = 30.0,
     ) -> DriveUpdateResponse:
         """Advance one BLE round-trip and return the latest cached ToF.
 
         Async to match `RealRobot.update`; the body itself is purely
-        synchronous CPU work.
+        synchronous CPU work. `align_tol_deg` mirrors the firmware's
+        `subsystem_drive::ALIGN_TOL_DEG` so the simulator brakes when
+        mis-aligned the same way the real robot does.
         """
         p = self.params
 
@@ -190,7 +189,7 @@ class SimRobot:
             step_end = min(end_us, self._next_tof_us)
             dt = (step_end - self.t_us) * 1e-6
             if dt > 0:
-                self._integrate(dt, target_speed, target_heading)
+                self._integrate(dt, target_speed, target_heading, align_tol_deg)
                 self.t_us = step_end
             if self.t_us >= self._next_tof_us:
                 self._sample_tof()
@@ -217,7 +216,13 @@ class SimRobot:
 
     # ----- internals -----
 
-    def _integrate(self, dt: float, target_speed: float, target_heading: float):
+    def _integrate(
+        self,
+        dt: float,
+        target_speed: float,
+        target_heading: float,
+        align_tol_deg: float,
+    ):
         """Advance ground-truth state by dt seconds."""
         p = self.params
 
@@ -227,7 +232,7 @@ class SimRobot:
         # badly mis-aligned.
         target_rad = radians(_wrap_deg(float(target_heading)))
         align_err = (target_rad - self.theta + pi) % (2 * pi) - pi
-        a = degrees(align_err) / p.align_tol_deg
+        a = degrees(align_err) / align_tol_deg
         speed_factor = float(np.exp(-a * a))
         forward_pwm = float(target_speed) * speed_factor
         # Mirror firmware odometry integrator: post-rolloff PWM against

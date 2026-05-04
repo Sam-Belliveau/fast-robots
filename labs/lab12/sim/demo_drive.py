@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from world import load_world
 from sim_robot import SimRobot
 from localization2d import Localization2D
-from controller import WaypointController, BeliefPlot, step_once
+from controller import SplineController, BeliefPlot, step_once
 from paths import LAB_PATH_M
 
 
@@ -39,8 +39,9 @@ async def main():
           f"build={time.time()-t0:.2f}s")
     loc.init_at(PATH[0][0], PATH[0][1], sigma_m=0.10)
 
-    ctl = WaypointController(path=PATH, **ctl_kwargs)
-    plot = BeliefPlot(loc, map_lines, path=PATH)
+    ctl = SplineController(path=PATH, loc=loc, map_lines=map_lines, **ctl_kwargs)
+    _, spline_xy = ctl.spline.dense_sample(0.01)
+    plot = BeliefPlot(loc, map_lines, path=PATH, spline_xy=spline_xy)
 
     plt.ion()
     last_t_us, last_yaw, step = 0, 0.0, 0
@@ -51,7 +52,7 @@ async def main():
         last_yaw = resp.yaw_deg
         gx, gy, _ = sim.pose
         plot.update((gx, gy), resp,
-                    title=f"step {step}  t={sim.t_s:.2f}s  wp {ctl.idx}/{len(PATH)-1}")
+                    title=f"step {step}  t={sim.t_s:.2f}s  s={ctl.s_prog:.2f}/{ctl.spline.S:.2f} m")
         try:
             plt.pause(0.02)
         except Exception:
