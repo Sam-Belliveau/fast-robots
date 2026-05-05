@@ -91,10 +91,10 @@ controller:
   # is drive_pwm * coherence, where coherence is the magnitude of the
   # belief-weighted averaged unit-heading vector, so the robot slows
   # automatically in regions where contributing headings conflict.
-  drive_pwm: 80.0
+  drive_pwm: 60.0
   # Heading error tolerance for "aligned" -- below this we drive,
   # and we re-evaluate the flip decision.
-  align_tol_deg: 24.0
+  align_tol_deg: 36.0
   # Low-pass RC (seconds) on the planning position. The belief mean is
   # jittery; smoothing here de-stutters the target bearing and the flip
   # decision. Set to 0 to disable.

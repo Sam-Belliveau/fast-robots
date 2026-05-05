@@ -204,10 +204,6 @@ class SplineController:
             self._seg_a = a
             self._seg_d = b - a
 
-        # Per-sample wall distance and `s_safe_max` walk.
-        self._sample_wall_dist = self._compute_sample_wall_dist()
-        self._s_safe_max = self._compute_s_safe_max()
-
         # Wall-graze validation up-front.
         violations = self.validate_spline_vs_walls()
         if violations:
@@ -231,30 +227,6 @@ class SplineController:
         ) = self._compute_cell_targets()
 
     # ---- precompute helpers ----
-
-    def _compute_sample_wall_dist(self) -> np.ndarray:
-        """For each dense spline sample, distance to nearest wall segment."""
-        if self._seg_a.shape[0] == 0:
-            return np.full(self._N, np.inf)
-        dists = _point_segment_distance(self.xy_samples, self._seg_a, self._seg_d)
-        return dists.min(axis=1)
-
-    def _compute_s_safe_max(self) -> np.ndarray:
-        """Largest reachable `s_target` from each sample without dropping
-        below `wall_clearance_m`. Walks forward; once below clearance,
-        cannot recover until the spline opens up again."""
-        N = self._N
-        out = np.empty(N, dtype=np.float64)
-        d = self._sample_wall_dist
-        clr = self.wall_clearance_m
-        # Walk from the end backwards: out[i] = i if d[i] < clr, else
-        # max(i+1's safe extension, i).
-        last_safe = N - 1 if d[N - 1] >= clr else N - 1
-        for i in range(N - 1, -1, -1):
-            if d[i] < clr:
-                last_safe = i  # stuck here; no advancement possible
-            out[i] = self.s_samples[last_safe]
-        return out
 
     def _segments_clear(self, p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
         """Vectorized "is segment p1->p2 free of wall crossings?".
@@ -499,7 +471,8 @@ class SplineController:
         target_dir_deg = math.degrees(math.atan2(head_y, head_x))
 
         # Synthetic aim point look_ahead_m ahead of the planner along
-        # the commanded heading -- only for plotting and speed scaling.
+        # the commanded heading, used for plotting and as the slack in
+        # the end-of-path termination test below.
         aim_x = x + self.look_ahead_m * head_x
         aim_y = y + self.look_ahead_m * head_y
         self._last_aim_xy = (aim_x, aim_y)
