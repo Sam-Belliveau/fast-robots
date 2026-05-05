@@ -37,25 +37,25 @@ localization:
   # Per-cell ray cache: rays at (360 / n_angles) deg, then circular
   # Gaussian smoothing on mean and squared distance.
   n_angles: 720
-  smooth_sigma_deg: 8.0
+  smooth_sigma_deg: 12.0
   max_dist_m: 6.0
 
   # Sensor model. Combined in quadrature with the per-angle std from
   # the smoothed cache, so corner buckets get de-weighted automatically.
-  sensor_sigma_mm: 20.0
+  sensor_sigma_mm: 32.0
 
   # On-board ToF saturates here (long-distance mode caps at ~2 m).
   # The update step clamps measurement + model to this value; the
   # corresponding (mean - sat)**2 variance inflation is baked into
   # the per-cell cache so a saturated reading is non-informative for
   # "could be anywhere beyond 2 m" cells.
-  tof_sat_mm: 4000.0
+  tof_sat_mm: 3500.0
 
   # Huber-style robust likelihood: cap |residual / std| at this many
   # standard deviations before squaring. Smaller = more tolerant of
   # outliers. 1.0 means a single bad reading can move the belief by
   # at most exp(-0.5) ~ 0.6 against a cell.
-  robust_z_max: 5.0
+  robust_z_max: 6.0
 
   # Motion model. Predict step replaces the prior with an anisotropic
   # Gaussian centered at (belief_mean + v * dt), with the long axis
@@ -71,7 +71,7 @@ localization:
   # PWM -> mm/s conversion used to project velocity from the
   # commanded speed. Calibrate against the actual step response
   # (~200 PWM -> ~2500 mm/s -> 12.5 mm/s per PWM).
-  pwm_to_vel_mm_s: 8.0
+  pwm_to_vel_mm_s: 6.0
 
   # Body-frame angles of the two ToF sensors.
   tof_sensor_angles_deg: [0.0, -90.0]
