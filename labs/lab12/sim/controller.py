@@ -22,6 +22,7 @@ from sim_robot import DriveUpdateResponse
 
 # ----------------------------- controller ---------------------------
 
+
 @dataclass
 class WaypointController:
     """Sequentially aims at each waypoint; advances inside stop radius.
@@ -44,8 +45,8 @@ class WaypointController:
 
     def __post_init__(self):
         # Runtime state, not configuration: starts fresh on construction.
-        self.idx: int = 1               # path[0] is the start pose
-        self.flip: bool = False         # True = drive backwards toward the waypoint
+        self.idx: int = 1  # path[0] is the start pose
+        self.flip: bool = False  # True = drive backwards toward the waypoint
         self.log: list[int] = []
         # ToF distance-mode hysteresis state, seeded to LONG so the first
         # DriveUpdate pushes the safer (longer-range) mode.
@@ -115,6 +116,7 @@ class WaypointController:
 @dataclass
 class ViolationReport:
     """A contiguous span of arclength where the spline grazes a wall."""
+
     s_start: float
     s_end: float
     min_distance_m: float
@@ -122,7 +124,9 @@ class ViolationReport:
     suggested_midpoint_xy: tuple[float, float]
 
 
-def _point_segment_distance(points: np.ndarray, seg_a: np.ndarray, seg_d: np.ndarray) -> np.ndarray:
+def _point_segment_distance(
+    points: np.ndarray, seg_a: np.ndarray, seg_d: np.ndarray
+) -> np.ndarray:
     """Distance from each point in `points` (P,2) to each segment (a, a+d). Returns (P, L)."""
     # ap = points[:,None,:] - seg_a[None,:,:]   shape (P, L, 2)
     ap = points[:, None, :] - seg_a[None, :, :]
@@ -137,17 +141,20 @@ def _point_segment_distance(points: np.ndarray, seg_a: np.ndarray, seg_d: np.nda
 
 @dataclass
 class SplineController:
-    """Belief-weighted look-ahead pure-pursuit on a cubic spline.
+    """Belief-weighted heading-field pure-pursuit on a cubic spline.
 
-    The spline is built from `path` and arclength-parameterized. For
-    each valid grid cell, the dense local-minima passes of the spline
-    near that cell are precomputed. At each step, every cell selects
-    the furthest-along eligible pass; the belief-weighted average
-    arclength `s_target_avg` defines a single on-spline target. Global
-    progress `s_prog` is monotone, advancing with `s_target_avg`.
+    Each valid grid cell precomputes up to two unit heading vectors:
+    for each local minimum of distance(cell, spline), the heading is a
+    Gaussian blend of (a) the spline tangent at the nearest pass and
+    (b) the unit vector from the cell toward that nearest spline point.
+    Close to the path -> tangent dominates; far -> drive toward the
+    path. The same Gaussian (sigma = `heading_sigma_m`) also weights
+    the cell's contribution, so distant cells fade out smoothly.
 
-    Same public surface as `WaypointController`, so `step_once` is
-    untouched.
+    At each step, eligible (cell, pass) pairs (forward window AND
+    cell-to-nearest-spline-point ray clear of walls) are summed as
+    weighted unit vectors. `atan2` of the resulting vector is the
+    commanded heading. `s_prog` advances with the weighted `pass_s`.
     """
 
     path: list[tuple[float, float]]
@@ -155,19 +162,17 @@ class SplineController:
     map_lines: list
     stop_radius_mm: float
     stop_flip_radius_mm: float
-    max_speed_pwm: float
-    min_speed_pwm: float
-    max_speed_distance_mm: float
+    drive_pwm: float
     align_tol_deg: float
     position_rc_s: float
     tof_long_threshold_mm: float
     tof_short_threshold_mm: float
     look_ahead_m: float
     advance_window_m: float
+    heading_sigma_m: float
     wall_clearance_m: float
     spline_sample_step_m: float
     s_prog_backoff_m: float
-    K_MAX: int = 8
 
     def __post_init__(self):
         # Runtime state
@@ -179,6 +184,7 @@ class SplineController:
         self._last_filt_t: float = 0.0
         self.s_prog: float = 0.0
         self._last_s_target: float = 0.0
+        self._last_aim_xy: tuple[float, float] = (0.0, 0.0)
         self._finished: bool = False
         self.log: list[float] = []  # s_prog history
 
@@ -216,8 +222,13 @@ class SplineController:
                 )
             raise RuntimeError(msg)
 
-        # Per-cell pass table.
-        self.pass_s, self.pass_d = self._compute_cell_passes()
+        # Per-cell heading field (s_pass, heading_vec, kernel, visible).
+        (
+            self._pass_s,
+            self._heading_vec,
+            self._kernel,
+            self._visible,
+        ) = self._compute_cell_targets()
 
     # ---- precompute helpers ----
 
@@ -245,11 +256,51 @@ class SplineController:
             out[i] = self.s_samples[last_safe]
         return out
 
-    def _compute_cell_passes(self) -> tuple[np.ndarray, np.ndarray]:
-        """For each valid cell, find local minima of distance(spline, cell)."""
+    def _segments_clear(self, p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+        """Vectorized "is segment p1->p2 free of wall crossings?".
+
+        p1, p2: arrays with trailing dim 2. Returns bool array of shape
+        p1.shape[:-1]. Empty wall set returns all True.
+        """
+        if self._seg_a.shape[0] == 0:
+            return np.ones(p1.shape[:-1], dtype=bool)
+        A = self._seg_a  # (L, 2)
+        D = self._seg_d  # (L, 2)
+        rx = p2[..., 0:1] - p1[..., 0:1]  # (..., 1)
+        ry = p2[..., 1:2] - p1[..., 1:2]  # (..., 1)
+        dx = D[:, 0]  # (L,)
+        dy = D[:, 1]  # (L,)
+        rxs = rx * dy - ry * dx  # (..., L)
+        qmpx = A[:, 0] - p1[..., 0:1]  # (..., L)
+        qmpy = A[:, 1] - p1[..., 1:2]  # (..., L)
+        safe = np.where(np.abs(rxs) > 1e-18, rxs, 1.0)
+        t = (qmpx * dy - qmpy * dx) / safe
+        u = (qmpx * ry - qmpy * rx) / safe
+        eps = 1e-9
+        crosses = (
+            (np.abs(rxs) > 1e-18)
+            & (t > eps)
+            & (t < 1.0 - eps)
+            & (u > eps)
+            & (u < 1.0 - eps)
+        )
+        return np.asarray(~crosses.any(axis=-1))
+
+    def _compute_cell_targets(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """For each valid cell, store up to K=2 (pass_s, heading_vec, kernel, visible).
+
+        A "pass" is a local minimum of distance(spline, cell). The
+        heading vector is a Gaussian blend (sigma = `heading_sigma_m`)
+        of the spline tangent at the pass and the unit vector from
+        the cell toward the spline point. Kernel is the gating weight
+        used at command time. Visibility: cell -> nearest-spline-point
+        ray must not cross a wall.
+        """
+        K = 2
         loc = self.loc
         nx, ny = loc.bel.shape
-        K = self.K_MAX
         pass_s = np.full((nx, ny, K), np.inf, dtype=np.float64)
         pass_d = np.full((nx, ny, K), np.inf, dtype=np.float64)
 
@@ -258,17 +309,12 @@ class SplineController:
         cell_xy = np.stack([loc.xs[ix_v], loc.ys[iy_v]], axis=1)  # (V, 2)
 
         chunk = 1024
-        max_passes_observed = 0
         for start in range(0, cell_xy.shape[0], chunk):
             end = min(start + chunk, cell_xy.shape[0])
-            cells = cell_xy[start:end]  # (C, 2)
-            # Distance (C, N).
+            cells = cell_xy[start:end]
             dx = cells[:, None, 0] - self.xy_samples[None, :, 0]
             dy = cells[:, None, 1] - self.xy_samples[None, :, 1]
             D = np.sqrt(dx * dx + dy * dy)
-            # Local minima of D over s: every spline approach to this
-            # cell. No distance threshold -- every pass is a candidate
-            # and the online step picks among them by progress.
             interior = (D[:, 1:-1] <= D[:, :-2]) & (D[:, 1:-1] <= D[:, 2:])
             mins_mask = np.zeros_like(D, dtype=bool)
             mins_mask[:, 1:-1] = interior
@@ -277,21 +323,51 @@ class SplineController:
             for c_idx in range(cells.shape[0]):
                 ks = np.where(mins_mask[c_idx])[0]
                 if ks.size > K:
-                    # Keep K closest passes if a cell has too many.
                     order = np.argsort(D[c_idx, ks])[:K]
                     ks = np.sort(ks[order])
-                if ks.size > max_passes_observed:
-                    max_passes_observed = ks.size
                 gx = ix_v[start + c_idx]
                 gy = iy_v[start + c_idx]
                 pass_s[gx, gy, : ks.size] = self.s_samples[ks]
                 pass_d[gx, gy, : ks.size] = D[c_idx, ks]
-        if max_passes_observed > K:
-            raise RuntimeError(
-                f"K_MAX={K} too small; saw {max_passes_observed} passes per cell. "
-                f"Increase SplineController.K_MAX."
-            )
-        return pass_s, pass_d
+
+        finite = np.isfinite(pass_s)
+        s_lookup = np.where(finite, pass_s, 0.0)
+        idx = np.clip(
+            np.round(s_lookup / self.spline_sample_step_m).astype(np.int64),
+            0,
+            self._N - 1,
+        )
+        # Nearest spline point and tangent for each pass.
+        spline_pt = self.xy_samples[idx]  # (nx, ny, K, 2)
+        tangent = self.spline.tangent(s_lookup.reshape(-1)).reshape(nx, ny, K, 2)
+
+        # Cell xy broadcast against (nx, ny, K, 2).
+        cx, cy = np.meshgrid(loc.xs, loc.ys, indexing="ij")
+        cell_grid = np.stack([cx, cy], axis=-1)  # (nx, ny, 2)
+        cell_grid_b = np.broadcast_to(cell_grid[..., None, :], (nx, ny, K, 2))
+
+        # Toward-path unit vector.
+        to_path = spline_pt - cell_grid_b
+        n = np.linalg.norm(to_path, axis=-1, keepdims=True)
+        to_path_unit = to_path / np.where(n > 1e-12, n, 1.0)
+
+        # Gaussian blend factor. Close => tangent, far => toward path.
+        sigma = max(1e-6, self.heading_sigma_m)
+        kernel = np.exp(-(pass_d * pass_d) / (2.0 * sigma * sigma))
+        kernel = np.where(finite, kernel, 0.0)
+
+        heading_vec = (
+            kernel[..., None] * tangent + (1.0 - kernel[..., None]) * to_path_unit
+        )
+        hn = np.linalg.norm(heading_vec, axis=-1, keepdims=True)
+        heading_vec = heading_vec / np.where(hn > 1e-12, hn, 1.0)
+
+        # Visibility: cell -> nearest spline point.
+        visible = self._segments_clear(cell_grid_b, spline_pt)
+        visible = visible & finite & valid[..., None]
+
+        self._pass_d = pass_d
+        return pass_s, heading_vec, kernel, visible
 
     # ---- public API ----
 
@@ -319,8 +395,7 @@ class SplineController:
     def current_waypoint(self) -> tuple[float, float] | None:
         if self.done:
             return None
-        xy = self.spline.xy(self._last_s_target)
-        return float(xy[0]), float(xy[1])
+        return self._last_aim_xy
 
     def nearest_on_spline(self, x: float, y: float) -> tuple[float, float, float]:
         """Project (x, y) onto the dense spline samples.
@@ -338,9 +413,8 @@ class SplineController:
         )
 
     def target_xy(self) -> tuple[float, float]:
-        """xy of the spline at the most recent `s_target_avg`."""
-        xy = self.spline.xy(self._last_s_target)
-        return float(xy[0]), float(xy[1])
+        """Most recent belief-weighted aim point (off-spline in general)."""
+        return self._last_aim_xy
 
     def validate_spline_vs_walls(self) -> list[ViolationReport]:
         """Return contiguous arclength runs where wall_distance < clearance."""
@@ -361,7 +435,9 @@ class SplineController:
             while j + 1 < N and violating[j + 1]:
                 j += 1
             seg_min = per_sample_min[i : j + 1].min()
-            wall_idx = int(per_sample_argmin[i + int(np.argmin(per_sample_min[i : j + 1]))])
+            wall_idx = int(
+                per_sample_argmin[i + int(np.argmin(per_sample_min[i : j + 1]))]
+            )
             mid_idx = (i + j) // 2
             mid_xy = self.xy_samples[mid_idx]
             out.append(
@@ -381,91 +457,78 @@ class SplineController:
         if self._finished:
             return 0.0, 0.0
 
-        bel = self.loc.bel
-        ps = self.pass_s
-        pd = self.pass_d
-        s_prog = self.s_prog
-
-        # Eligible passes: forward of s_prog AND inside the advance
-        # window. Every reachable point on the spline is a valid target;
-        # cells without any pass in the forward window simply don't
-        # contribute to the belief-weighted target.
+        bel = self.loc.bel  # (nx, ny)
+        ps = self._pass_s   # (nx, ny, K)
         eligible = (
-            (ps >= s_prog)
-            & (ps <= s_prog + self.advance_window_m)
+            self._visible
+            & (ps >= self.s_prog)
+            & (ps <= self.s_prog + self.advance_window_m)
         )
-        # Furthest s_pass among eligible (resolves loop-closure ambiguity:
-        # a cell that the spline visits twice prefers the later visit).
-        s_masked = np.where(eligible, ps, -np.inf)
-        k_pick = np.argmax(s_masked, axis=2)
-        contributes_2d = np.any(eligible, axis=2)
 
-        # Per-cell selected pass (only meaningful where contributes_2d).
-        s_pass = np.take_along_axis(ps, k_pick[..., None], axis=2).squeeze(-1)
-        d_pass = np.take_along_axis(pd, k_pick[..., None], axis=2).squeeze(-1)
-        s_pass = np.where(contributes_2d, s_pass, 0.0)
-        d_pass = np.where(contributes_2d, d_pass, 0.0)
+        # Per (cell, pass) weight: belief * gaussian kernel on path
+        # distance * eligibility. The kernel naturally fades far cells.
+        weight = bel[..., None] * self._kernel * eligible  # (nx, ny, K)
+        W = float(weight.sum())
 
-        # Look-ahead with shrink: full look-ahead when on the path,
-        # shorter when the cell is offset from the path.
-        effective_la = np.maximum(0.0, self.look_ahead_m - d_pass)
-        s_target_raw = np.clip(s_pass + effective_la, 0.0, self.spline.S)
-
-        # Wall-clearance cap on the look-ahead: don't aim at a stretch
-        # of the spline that gets within wall_clearance_m of a wall.
-        idx = np.clip(
-            np.round(s_pass / self.spline_sample_step_m).astype(np.int64),
-            0, self._N - 1,
-        )
-        s_safe = self._s_safe_max[idx]
-        s_target = np.minimum(s_target_raw, s_safe)
-
-        # Belief weighting restricted to contributing cells. If no cell
-        # has an eligible pass (e.g., belief is far off the path), fall
-        # back to a global push of s_prog + look_ahead.
-        weight = bel * contributes_2d
-        weight_sum = float(weight.sum())
-        if weight_sum > 0:
-            s_target_avg = float((weight * s_target).sum() / weight_sum)
+        if W > 0:
+            head_x = float((weight * self._heading_vec[..., 0]).sum() / W)
+            head_y = float((weight * self._heading_vec[..., 1]).sum() / W)
+            ps_safe = np.where(eligible, ps, 0.0)
+            s_pass_avg = float((weight * ps_safe).sum() / W)
         else:
-            s_target_avg = min(self.s_prog + self.look_ahead_m, self.spline.S)
+            # Fallback: aim along the spline tangent at the nearest
+            # forward sample to (x, y).
+            forward_mask = self.s_samples >= self.s_prog
+            fwd_xy = self.xy_samples[forward_mask]
+            fwd_s = self.s_samples[forward_mask]
+            dxq = fwd_xy[:, 0] - x
+            dyq = fwd_xy[:, 1] - y
+            k = int(np.argmin(dxq * dxq + dyq * dyq))
+            s_pass_avg = float(fwd_s[k])
+            tan = self.spline.tangent(s_pass_avg)
+            head_x, head_y = float(tan[0]), float(tan[1])
 
-        self._last_s_target = s_target_avg
-        # Target XY directly on the spline.
-        xy_t = self.spline.xy(s_target_avg)
-        tx, ty = float(xy_t[0]), float(xy_t[1])
+        # Pre-normalization magnitude is the agreement of the
+        # contributing unit headings: ~1 when they all point the same
+        # way, smaller when they conflict. Used to modulate speed.
+        h_mag = math.hypot(head_x, head_y)
+        coherence = max(0.0, min(1.0, h_mag))
+        if h_mag > 1e-12:
+            head_x /= h_mag
+            head_y /= h_mag
+        target_dir_deg = math.degrees(math.atan2(head_y, head_x))
 
-        dx, dy = tx - x, ty - y
-        dist_mm = math.hypot(dx, dy) * 1000.0
-        target_dir_deg = math.degrees(math.atan2(dy, dx))
+        # Synthetic aim point look_ahead_m ahead of the planner along
+        # the commanded heading -- only for plotting and speed scaling.
+        aim_x = x + self.look_ahead_m * head_x
+        aim_y = y + self.look_ahead_m * head_y
+        self._last_aim_xy = (aim_x, aim_y)
+        self._last_s_target = s_pass_avg
 
-        # Advance progress (monotone).
-        self.s_prog = max(self.s_prog, s_target_avg - self.s_prog_backoff_m)
+        # Monotone progress.
+        self.s_prog = max(self.s_prog, s_pass_avg - self.s_prog_backoff_m)
         self.log.append(self.s_prog)
 
-        # Termination: stop once progress has reached the end of the
-        # spline (so we don't trigger mid-loop, where the path passes
-        # geometrically near the endpoint) AND the planner position is
-        # within `stop_radius_mm` of the endpoint.
+        # Termination: progress reached the end and the planner is
+        # geometrically within `stop_radius_mm` of the spline endpoint.
         end_xy = self.spline.xy(self.spline.S)
         end_dx = float(end_xy[0]) - x
         end_dy = float(end_xy[1]) - y
         if (
-            self.s_prog >= self.spline.S - self.advance_window_m
+            self.s_prog >= self.spline.S - self.look_ahead_m
             and math.hypot(end_dx, end_dy) * 1000.0 < self.stop_radius_mm
         ):
             self._finished = True
             self.s_prog = self.spline.S
             return 0.0, 0.0
 
-        span = max(1e-6, self.max_speed_distance_mm - self.stop_radius_mm)
-        t = (dist_mm - self.stop_radius_mm) / span
-        t = max(0.0, min(1.0, t))
-        speed = self.min_speed_pwm + t * (self.max_speed_pwm - self.min_speed_pwm)
-        return speed, target_dir_deg
+        # Speed scales with the agreement of the contributing headings:
+        # full speed when they align, zero when they cancel.
+        return self.drive_pwm * coherence, target_dir_deg
 
 
 # ------------------------------ plotting ----------------------------
+
 
 class BeliefPlot:
     """Heatmap + ground truth + belief argmax + ToF rays + path overlay."""
@@ -482,8 +545,13 @@ class BeliefPlot:
         self.fig, self.ax = plt.subplots(figsize=figsize)
 
         self.im = self.ax.imshow(
-            loc.bel.T, origin="lower", extent=loc.extent,
-            cmap="hot", vmin=0.0, vmax=loc.bel.max() + 1e-12, alpha=0.85,
+            loc.bel.T,
+            origin="lower",
+            extent=loc.extent,
+            cmap="hot",
+            vmin=0.0,
+            vmax=loc.bel.max() + 1e-12,
+            alpha=0.85,
         )
         for (x0, y0), (x1, y1) in map_lines:
             self.ax.plot([x0, x1], [y0, y1], "k-", lw=2)
@@ -494,41 +562,78 @@ class BeliefPlot:
             self.ax.plot(px, py, "c*", ms=12, alpha=0.7, label="waypoints")
         if spline_xy is not None:
             self.ax.plot(
-                spline_xy[:, 0], spline_xy[:, 1], "c-", lw=1.5, alpha=0.7, label="spline"
+                spline_xy[:, 0],
+                spline_xy[:, 1],
+                "c-",
+                lw=1.5,
+                alpha=0.7,
+                label="spline",
             )
         elif path:
             px = [p[0] for p in path]
             py = [p[1] for p in path]
             self.ax.plot(px, py, "c--", lw=1.5, alpha=0.7, label="path")
 
-        self.gt_trail,  = self.ax.plot([], [], "g-", lw=1.0, alpha=0.7)
-        self.bel_trail, = self.ax.plot([], [], "r-", lw=1.0, alpha=0.7)
-        self.gt_pt,  = self.ax.plot([], [], "go", ms=10, label="ground truth")
-        self.bel_pt, = self.ax.plot([], [], "rx", ms=12, mew=3, label="belief mean")
-        self.filt_pt, = self.ax.plot([], [], "y+", ms=14, mew=3, label="planner pos (filtered)")
-        self._gt_xs:  list[float] = []
-        self._gt_ys:  list[float] = []
+        (self.gt_trail,) = self.ax.plot([], [], "g-", lw=1.0, alpha=0.7)
+        (self.bel_trail,) = self.ax.plot([], [], "r-", lw=1.0, alpha=0.7)
+        (self.gt_pt,) = self.ax.plot([], [], "go", ms=10, label="ground truth")
+        (self.bel_pt,) = self.ax.plot([], [], "rx", ms=12, mew=3, label="belief mean")
+        (self.filt_pt,) = self.ax.plot(
+            [], [], "y+", ms=14, mew=3, label="planner pos (filtered)"
+        )
+        self._gt_xs: list[float] = []
+        self._gt_ys: list[float] = []
         self._bel_xs: list[float] = []
         self._bel_ys: list[float] = []
-        self.ray1,     = self.ax.plot([], [], color="lime",        lw=1.5, alpha=0.9, label="tof1")
-        self.ray1_hit, = self.ax.plot([], [], "o", mfc="none", mec="lime",        ms=8, mew=1.5)
-        self.ray2,     = self.ax.plot([], [], color="deepskyblue", lw=1.5, alpha=0.9, label="tof2")
-        self.ray2_hit, = self.ax.plot([], [], "o", mfc="none", mec="deepskyblue", ms=8, mew=1.5)
+        (self.ray1,) = self.ax.plot(
+            [], [], color="lime", lw=1.5, alpha=0.9, label="tof1"
+        )
+        (self.ray1_hit,) = self.ax.plot(
+            [], [], "o", mfc="none", mec="lime", ms=8, mew=1.5
+        )
+        (self.ray2,) = self.ax.plot(
+            [], [], color="deepskyblue", lw=1.5, alpha=0.9, label="tof2"
+        )
+        (self.ray2_hit,) = self.ax.plot(
+            [], [], "o", mfc="none", mec="deepskyblue", ms=8, mew=1.5
+        )
         # Nearest projection on spline (where the robot is right now) and
         # current target on spline (where the controller is aiming).
-        self.proj_pt,    = self.ax.plot(
-            [], [], "o", mfc="none", mec="magenta", ms=14, mew=2.0,
+        (self.proj_pt,) = self.ax.plot(
+            [],
+            [],
+            "o",
+            mfc="none",
+            mec="magenta",
+            ms=14,
+            mew=2.0,
             label="spline nearest",
         )
-        self.target_pt,  = self.ax.plot(
-            [], [], "*", color="orange", ms=18, mec="black", mew=0.8,
+        (self.target_pt,) = self.ax.plot(
+            [],
+            [],
+            "*",
+            color="orange",
+            ms=18,
+            mec="black",
+            mew=0.8,
             label="spline target",
         )
-        self.aim_seg,    = self.ax.plot(
-            [], [], "-", color="orange", lw=1.5, alpha=0.6,
+        (self.aim_seg,) = self.ax.plot(
+            [],
+            [],
+            "-",
+            color="orange",
+            lw=1.5,
+            alpha=0.6,
         )
-        self.proj_seg,   = self.ax.plot(
-            [], [], "-", color="magenta", lw=1.0, alpha=0.5,
+        (self.proj_seg,) = self.ax.plot(
+            [],
+            [],
+            "-",
+            color="magenta",
+            lw=1.0,
+            alpha=0.5,
         )
 
         self.title = self.ax.set_title("step 0")
@@ -553,7 +658,8 @@ class BeliefPlot:
         self.im.set_data(self.loc.bel.T)
         self.im.set_clim(vmin=0.0, vmax=self.loc.bel.max() + 1e-12)
 
-        self._bel_xs.append(bx); self._bel_ys.append(by)
+        self._bel_xs.append(bx)
+        self._bel_ys.append(by)
         self.bel_trail.set_data(self._bel_xs, self._bel_ys)
         self.bel_pt.set_data([bx], [by])
 
@@ -561,10 +667,11 @@ class BeliefPlot:
             self.filt_pt.set_data([filtered_xy[0]], [filtered_xy[1]])
 
         if gt_xy is None:
-            ox, oy = bx, by                # rays anchored at belief mean
+            ox, oy = bx, by  # rays anchored at belief mean
         else:
             ox, oy = gt_xy
-            self._gt_xs.append(ox); self._gt_ys.append(oy)
+            self._gt_xs.append(ox)
+            self._gt_ys.append(oy)
             self.gt_trail.set_data(self._gt_xs, self._gt_ys)
             self.gt_pt.set_data([ox], [oy])
 
@@ -609,6 +716,7 @@ class BeliefPlot:
 
 # ---------------------------- filter step ---------------------------
 
+
 def filter_step(
     loc: Localization2D,
     resp: DriveUpdateResponse,
@@ -639,6 +747,7 @@ def filter_step(
 
 
 # ---------------------------- one BLE step --------------------------
+
 
 async def step_once(
     robot,

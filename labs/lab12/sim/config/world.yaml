@@ -37,19 +37,19 @@ localization:
   # Per-cell ray cache: rays at (360 / n_angles) deg, then circular
   # Gaussian smoothing on mean and squared distance.
   n_angles: 720
-  smooth_sigma_deg: 12.0
+  smooth_sigma_deg: 8.0
   max_dist_m: 6.0
 
   # Sensor model. Combined in quadrature with the per-angle std from
   # the smoothed cache, so corner buckets get de-weighted automatically.
-  sensor_sigma_mm: 32.0
+  sensor_sigma_mm: 20.0
 
   # On-board ToF saturates here (long-distance mode caps at ~2 m).
   # The update step clamps measurement + model to this value; the
   # corresponding (mean - sat)**2 variance inflation is baked into
   # the per-cell cache so a saturated reading is non-informative for
   # "could be anywhere beyond 2 m" cells.
-  tof_sat_mm: 3500.0
+  tof_sat_mm: 4000.0
 
   # Huber-style robust likelihood: cap |residual / std| at this many
   # standard deviations before squaring. Smaller = more tolerant of
@@ -87,18 +87,18 @@ controller:
   # Inside this radius the flip-direction decision is frozen so the
   # controller does not chatter near a waypoint.
   stop_flip_radius_mm: 250.0
-  # Forward drive PWM scales linearly with distance to the waypoint:
-  # min_speed_pwm at stop_radius_mm, max_speed_pwm at >= max_speed_distance_mm.
-  max_speed_pwm: 55.0
-  min_speed_pwm: 40.0
-  max_speed_distance_mm: 300.0
+  # Forward drive PWM at full heading agreement. The actual command
+  # is drive_pwm * coherence, where coherence is the magnitude of the
+  # belief-weighted averaged unit-heading vector, so the robot slows
+  # automatically in regions where contributing headings conflict.
+  drive_pwm: 80.0
   # Heading error tolerance for "aligned" -- below this we drive,
   # and we re-evaluate the flip decision.
-  align_tol_deg: 30.0
+  align_tol_deg: 24.0
   # Low-pass RC (seconds) on the planning position. The belief mean is
   # jittery; smoothing here de-stutters the target bearing and the flip
   # decision. Set to 0 to disable.
-  position_rc_s: 0.01 
+  position_rc_s: 0.01
   # ToF distance-mode hysteresis (mm). Switch a sensor to LONG when the
   # belief-mean expected distance crosses tof_long_threshold_mm and back
   # to SHORT only when it falls below tof_short_threshold_mm.
@@ -107,17 +107,23 @@ controller:
   # Spline path-following (SplineController) knobs. The spline is the
   # cubic-spline interpolant of `path`, arclength-parameterized in m.
   # look_ahead_m: pure-pursuit look-ahead from the path-projection point.
-  # advance_window_m: only consider passes inside [s_prog, s_prog+window].
+  # advance_window_m: a per-cell pass only counts if its arclength is in
+  #   [s_prog, s_prog + advance_window_m]. Picks the lap consistent with
+  #   current progress; without it, end-of-spline passes dominate.
   # wall_clearance_m: dynamic look-ahead is shortened so the targeted
   #   spline segment never gets within this distance of any wall.
   # spline_sample_step_m: dense-sample spacing along arclength.
-  # s_prog_backoff_m: monotone progress lags the weighted target by this
-  #   amount so a transient belief swing cannot leap past a sharp curve.
-  look_ahead_m: 0.1
-  advance_window_m: 0.20
-  wall_clearance_m: 0.001
-  spline_sample_step_m: 0.001
-  s_prog_backoff_m: 0.05
+  # s_prog_backoff_m: monotone progress lags the weighted nearest pass
+  #   so a transient swing cannot ratchet past a sharp curve.
+  look_ahead_m: 0.256
+  advance_window_m: 0.512
+  # heading_sigma_m: Gaussian sigma (m) on cell-to-spline distance.
+  # Used both as the belief weighting kernel and as the tangent-vs-
+  # toward-path blend factor (close => tangent, far => toward path).
+  heading_sigma_m: 0.064
+  wall_clearance_m: 0.016
+  spline_sample_step_m: 0.0005
+  s_prog_backoff_m: 0.064
 
 simulation:
   # Drivetrain
@@ -133,7 +139,7 @@ simulation:
   # time constant in seconds. tau=120s with sigma=3deg models a gyro
   # offset that wanders by a few degrees over a couple of minutes,
   # not several degrees per second.
-  heading_bias_sigma_deg: 3.0
+  heading_bias_sigma_deg: 1.0
   heading_bias_tau_s:     120.0
   heading_step_sigma_deg: 2.0
   # ToF sensor model
@@ -142,7 +148,7 @@ simulation:
   tof1_angle_deg: 0.0
   tof2_angle_deg: -90.0
   tof_rate_hz: 50.0
-  tof_jitter_frac: 0.10
+  tof_jitter_frac: 0.05
   # Timing
   physics_dt_s: 0.005
   ble_rtt_s: 0.10
