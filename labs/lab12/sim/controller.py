@@ -173,6 +173,7 @@ class SplineController:
     wall_clearance_m: float
     spline_sample_step_m: float
     s_prog_backoff_m: float
+    heading_lookahead_m: float
 
     def __post_init__(self):
         # Runtime state
@@ -309,9 +310,15 @@ class SplineController:
             0,
             self._N - 1,
         )
-        # Nearest spline point and tangent for each pass.
+        # Nearest spline point and tangent for each pass. The tangent is
+        # evaluated `heading_lookahead_m` further along the curve to bias
+        # the heading toward where the robot will be after a small amount
+        # of latency, rather than where it is right now.
         spline_pt = self.xy_samples[idx]  # (nx, ny, K, 2)
-        tangent = self.spline.tangent(s_lookup.reshape(-1)).reshape(nx, ny, K, 2)
+        s_tangent = np.clip(
+            s_lookup + self.heading_lookahead_m, 0.0, self.spline.S
+        )
+        tangent = self.spline.tangent(s_tangent.reshape(-1)).reshape(nx, ny, K, 2)
 
         # Cell xy broadcast against (nx, ny, K, 2).
         cx, cy = np.meshgrid(loc.xs, loc.ys, indexing="ij")
@@ -457,7 +464,8 @@ class SplineController:
             dyq = fwd_xy[:, 1] - y
             k = int(np.argmin(dxq * dxq + dyq * dyq))
             s_pass_avg = float(fwd_s[k])
-            tan = self.spline.tangent(s_pass_avg)
+            s_tan = min(self.spline.S, s_pass_avg + self.heading_lookahead_m)
+            tan = self.spline.tangent(s_tan)
             head_x, head_y = float(tan[0]), float(tan[1])
 
         # Pre-normalization magnitude is the agreement of the

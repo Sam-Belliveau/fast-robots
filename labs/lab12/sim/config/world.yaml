@@ -37,7 +37,7 @@ localization:
   # Per-cell ray cache: rays at (360 / n_angles) deg, then circular
   # Gaussian smoothing on mean and squared distance.
   n_angles: 720
-  smooth_sigma_deg: 12.0
+  smooth_sigma_deg: 16.0
   max_dist_m: 6.0
 
   # Sensor model. Combined in quadrature with the per-angle std from
@@ -55,14 +55,14 @@ localization:
   # standard deviations before squaring. Smaller = more tolerant of
   # outliers. 1.0 means a single bad reading can move the belief by
   # at most exp(-0.5) ~ 0.6 against a cell.
-  robust_z_max: 6.0
+  robust_z_max: 4.0
 
   # Motion model. Predict step replaces the prior with an anisotropic
   # Gaussian centered at (belief_mean + v * dt), with the long axis
   # aligned to the measured heading. Bigger spread along heading
   # (distance traveled is uncertain), tight cross axis (gyro is
   # trusted).
-  motion_long_sigma_per_m:   0.192
+  motion_long_sigma_per_m:   0.224
   # Per (PWM * second) longitudinal spread. Captures uncertainty in
   # the pwm_to_vel_mm_s mapping itself: at speed_pwm=70 for dt=0.1s,
   motion_long_sigma_per_pwm: 0.032
@@ -71,7 +71,7 @@ localization:
   # PWM -> mm/s conversion used to project velocity from the
   # commanded speed. Calibrate against the actual step response
   # (~200 PWM -> ~2500 mm/s -> 12.5 mm/s per PWM).
-  pwm_to_vel_mm_s: 6.0
+  pwm_to_vel_mm_s: 10.0
 
   # Body-frame angles of the two ToF sensors.
   tof_sensor_angles_deg: [0.0, -90.0]
@@ -91,10 +91,10 @@ controller:
   # is drive_pwm * coherence, where coherence is the magnitude of the
   # belief-weighted averaged unit-heading vector, so the robot slows
   # automatically in regions where contributing headings conflict.
-  drive_pwm: 60.0
+  drive_pwm: 80.0
   # Heading error tolerance for "aligned" -- below this we drive,
   # and we re-evaluate the flip decision.
-  align_tol_deg: 36.0
+  align_tol_deg: 30.0
   # Low-pass RC (seconds) on the planning position. The belief mean is
   # jittery; smoothing here de-stutters the target bearing and the flip
   # decision. Set to 0 to disable.
@@ -120,10 +120,15 @@ controller:
   # heading_sigma_m: Gaussian sigma (m) on cell-to-spline distance.
   # Used both as the belief weighting kernel and as the tangent-vs-
   # toward-path blend factor (close => tangent, far => toward path).
-  heading_sigma_m: 0.064
+  heading_sigma_m: 0.096
   wall_clearance_m: 0.016
   spline_sample_step_m: 0.0005
   s_prog_backoff_m: 0.064
+  # heading_lookahead_m: how far past each cell's nearest spline point
+  # to evaluate the spline tangent that defines the heading. Compensates
+  # for actuation/BLE latency by aiming where the robot will be a moment
+  # from now, not where it currently projects on the path.
+  heading_lookahead_m: 0.096
 
 simulation:
   # Drivetrain

@@ -202,9 +202,9 @@ namespace drive {
         // turn-in-place differential at full diff. Saturating sooner means
         // small heading errors drive a meaningful wheel difference instead
         // of dying inside the desticker dead band.
-        heading_controller.kP = 7.0f;
+        heading_controller.kP = 6.0f;
         heading_controller.kI = 0.0f;
-        heading_controller.kD = 0.1f;
+        heading_controller.kD = 0.325f;
         heading_controller.integrator_cap = 0;
         heading_controller.integrator_range = 0;
 
