@@ -37,7 +37,7 @@ localization:
   # Per-cell ray cache: rays at (360 / n_angles) deg, then circular
   # Gaussian smoothing on mean and squared distance.
   n_angles: 720
-  smooth_sigma_deg: 16.0
+  smooth_sigma_deg: 8.0
   max_dist_m: 6.0
 
   # Sensor model. Combined in quadrature with the per-angle std from
